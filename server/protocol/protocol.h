@@ -98,7 +98,8 @@
 #define MAX_ROOM_ID_LEN 32
 #define MAX_SESSION_ID_LEN 64
 #define MAX_MESSAGE_LEN 8192
-#define MAX_DATA_SIZE (1024 * 1024)   
+#define MAX_DATA_SIZE (1024 * 1024)  
+#define MAX_PARAMS 10 
 #define DELIMITER '\n'
 
 // ==========================================
