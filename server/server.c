@@ -3,7 +3,7 @@
 // #include "room/room.h"
 // #include "exam/exam.h"
 // #include "practice/practice.h"
-// #include "logger/logger.h"
+#include "logger/logger.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +46,7 @@ int server_init(Server *server, int port) {
     log_event(LOG_INFO, NULL, "SERVER", "Database connected successfully");
 
     // initialize mutex
-    pthread_mutex_init(&server->mutex, NULL);
+    pthread_mutex_init(&server->clients_mutex, NULL);
 
     // create socket
     server->server_fd = socket(AF_INET, SOCK_STREAM, 0);
