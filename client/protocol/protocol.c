@@ -45,7 +45,19 @@ int recv_line(int sockfd, char *buffer, size_t buffer_size){
 }
 
 //  * 1. Control message: COMMAND param1|param2\n
+// => Msg struct
+// msg->command = COMMAND
+// msg->params = [param1, param2]
+// msg->param_count = 2
+// msg->data = NULL
+// msg->data_length = 0
 //  * 2. Data message: CODE DATA length\n<data>
+// => Msg struct
+// msg->command = CODE (as string)
+// msg->params = []
+// msg->param_count = 0
+// msg->data = <data>
+// msg->data_length = length
 int parse_message(const char *buffer, Message *msg) {
     memset(msg, 0, sizeof(Message));
 
@@ -93,12 +105,12 @@ int parse_message(const char *buffer, Message *msg) {
         *newline = '\0';
 
         // Parse: COMMAND and params
-        char *space = strchr(tmp, ' ');
+        char *space = strchr(tmp, ' '); // space = " param1|param2|param3" tmp = "COMMAND"
         if(space){
             *space = '\0';
             strncpy(msg->command, tmp, sizeof(msg->command) - 1);
 
-            char *params_str = space + 1;
+            char *params_str = space + 1; // params_str = "param1|param2|param3"
             char *param_token = strtok(params_str, "|");
             while(param_token && msg->param_count < MAX_PARAMS){
                 strncpy(msg->params[msg->param_count], param_token, 255);

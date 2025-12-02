@@ -1,7 +1,8 @@
 #include "server.h"
+#include <unistd.h> 
 
 // main function
-int main(int argc, char *argv[]){
+int main(){
     Server server;
     
     printf("===========================================\n");
@@ -16,7 +17,11 @@ int main(int argc, char *argv[]){
     server_start(&server);
 
     // cleanup
-    db_disconnect(&server.db);
+    if (server.db) {
+        db_disconnect(server.db);
+        free(server.db);
+        server.db = NULL;
+    }
     close(server.server_fd);
     logger_close();
 

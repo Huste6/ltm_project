@@ -31,13 +31,20 @@ int server_init(Server *server, int port) {
     log_event(LOG_INFO, NULL, "SERVER", "Starting server initialization");
 
     // initialize database
+    server->db = malloc(sizeof(Database));
+    if (!server->db) {
+        fprintf(stderr, "Failed to allocate memory for database\n");
+        log_event(LOG_ERROR, NULL, "SERVER", "Database memory allocation failed");
+        return -1;
+    }
+    
     const char *host = "127.0.0.1"; 
     const char *user = "exam_user";
     const char *password = "exam123456";
     const char *dbname = "exam_system";
     unsigned int port_db = 3306; 
 
-    if (db_connect_with_port(&server->db, host, user, password, dbname, port_db) < 0) {
+    if (db_connect_with_port(server->db, host, user, password, dbname, port_db) < 0) {
         fprintf(stderr, "Failed to initialize database\n");
         log_event(LOG_ERROR, NULL, "SERVER", "Database initialization failed");
         return -1;
@@ -123,7 +130,7 @@ void server_start(Server *server) {
         }
         if (slot == -1) {
             pthread_mutex_unlock(&server->clients_mutex);
-            send_error(client_fd, CODE_INTERNAL_ERROR, "Server full");
+            send_error_or_response(client_fd, CODE_INTERNAL_ERROR, "Server full");
             close(client_fd);
             log_event(LOG_WARNING, NULL, "CONNECTION", "Connection from %s:%d rejected: server full", client_ip, ntohs(client_addr.sin_port));
             continue;
@@ -148,6 +155,7 @@ void server_start(Server *server) {
 
 /**
  * @brief Handle client connection
+ * nhận và xử lý các command từ client
  */
 void* handle_client(void *arg) {
     ClientSession *client = (ClientSession*)arg;
@@ -166,29 +174,29 @@ void* handle_client(void *arg) {
         }
 
         // check if data message
-        // CODE DATA length\n
-        if(strstr(buffer, " DATA ")) {
+        // CODE DATA length\n<data>
+        if(strstr(buffer, " DATA ")) { // -> buffer = " DATA length\n"
             // extract length and receive full data
             char temp[256];
             strncpy(temp, buffer, sizeof(temp) - 1);
             char *nl = strchr(temp, '\n');
-            if(nl) *nl = '\0';
+            if(nl) *nl = '\0'; // -> temp = " DATA length"
 
-            char *length_str = strrchr(temp, ' ');
+            char *length_str = strrchr(temp, ' '); // -> length_str = " length"
             if(!length_str) {
-                send_error(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid DATA message format");
+                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid DATA message format");
                 continue;
             }
 
             size_t length = (size_t)atoll(length_str + 1);
             if(length > MAX_DATA_SIZE) {
-                send_error(client->socket_fd, CODE_SYNTAX_ERROR, "Data size too large");
+                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Data size too large");
                 continue;
             }
 
             char *full_buffer = (char*)malloc(bytes_received + length + 1);
             if(!full_buffer) {
-                send_error(client->socket_fd, CODE_INTERNAL_ERROR, "Memory allocation failed");
+                send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Memory allocation failed");
                 continue;
             }
 
@@ -202,7 +210,7 @@ void* handle_client(void *arg) {
 
             Message msg;
             if(parse_message(full_buffer, &msg) < 0) {
-                send_error(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid message format");
+                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid message format");
                 free(full_buffer);
                 continue;
             }
@@ -216,7 +224,7 @@ void* handle_client(void *arg) {
         client->last_activity = time(NULL);
         Message msg;
         if(parse_message(buffer, &msg) < 0) {
-            send_error(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid message format");
+            send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid message format");
             continue;
         }
 
@@ -228,11 +236,11 @@ void* handle_client(void *arg) {
         } else if(strcmp(msg.command, MSG_LOGIN) == 0) {
             handle_login(g_server, client, &msg);
         } else if(strcmp(msg.command, MSG_LOGOUT) == 0) {
-            handle_logout(g_server, client, &msg);
+            handle_logout(g_server, client);
         } else if(strcmp(msg.command, MSG_PING) == 0) {
-            send_error(client->socket_fd, CODE_PONG, "PONG");
+            send_error_or_response(client->socket_fd, CODE_PONG, "PONG");
         } else {
-            send_error(client->socket_fd, CODE_BAD_COMMAND, msg.command);
+            send_error_or_response(client->socket_fd, CODE_BAD_COMMAND, msg.command);
             log_event(LOG_WARNING, client->username[0] ? client->username : "anonymous", "BAD_COMMAND", "Unknown command: %s", msg.command);
         }
 
@@ -243,14 +251,14 @@ void* handle_client(void *arg) {
     remove_client_session(g_server, client->socket_fd);
     close(client->socket_fd);
     client->active = 0;
-    free(client);
-
+    
     printf("[Thread %lu] Cleaning up client socket %d\n", pthread_self(), client->socket_fd);
     return NULL;
 }
 
 /**
  * @brief Find session by socket
+ * dùng để kiểm tra client đã đăng nhập chưa
  */
 ClientSession* find_session_by_socket(Server *server, int socket_fd) {
     pthread_mutex_lock(&server->clients_mutex);
@@ -267,6 +275,7 @@ ClientSession* find_session_by_socket(Server *server, int socket_fd) {
 
 /**
  * @brief Find session by username
+ * dùng để kiểm tra client đã đăng nhập chưa
  */
 ClientSession* find_session_by_username(Server *server, const char *username) {
     pthread_mutex_lock(&server->clients_mutex);
@@ -304,7 +313,7 @@ void remove_client_session(Server *server, int socket_fd) {
 /**
  * @brief Send error/response to client
  */
-void send_error(int socket_fd, int code, const char *message) {
+void send_error_or_response(int socket_fd, int code, const char *message) {
     char buffer[MAX_MESSAGE_LEN];
     int len = create_simple_response(code, message, buffer, sizeof(buffer));
     send_full(socket_fd, buffer, len);

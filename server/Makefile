@@ -1,57 +1,61 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -std=c99 -pthread
-LDFLAGS = -lmysqlclient -lpthread
+CFLAGS = -Wall -Wextra -pthread -I/usr/include/mysql -g
+LDFLAGS = -lmysqlclient -lssl -lcrypto -lpthread
+
+# MySQL config
+MYSQL_CFLAGS = $(shell mysql_config --cflags)
+MYSQL_LIBS = $(shell mysql_config --libs)
 
 # Directories
 SRC_DIR = .
-DB_DIR = database
-AUTH_DIR = auth
-EXAM_DIR = exam
-LOGGER_DIR = logger
-PRACTICE_DIR = practice
-PROTOCOL_DIR = protocol
-ROOM_DIR = room
+BUILD_DIR = build
+BIN_DIR = bin
 
 # Source files
 SOURCES = main.c \
-          $(DB_DIR)/database.c
+          server.c \
+          protocol.c \
+          database.c \
+          auth.c \
+          room.c \
+          exam.c \
+          practice.c \
+          logger.c
 
 # Object files
-OBJECTS = $(SOURCES:.c=.o)
+OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
-# Target executable
-TARGET = test_db
+# Executable
+TARGET = $(BIN_DIR)/exam_server
 
 # Default target
-all: $(TARGET)
+.PHONY: all clean setup
 
+all: setup $(TARGET)
+
+# Create necessary directories
+setup:
+	@mkdir -p $(BUILD_DIR) $(BIN_DIR)
+
+# Link the executable
 $(TARGET): $(OBJECTS)
-	$(CC) $(OBJECTS) -o $(TARGET) $(LDFLAGS)
+	$(CC) $(OBJECTS) -o $@ $(LDFLAGS) $(MYSQL_LIBS)
+	@echo "Built $(TARGET)"
 
-# Compile .c files to .o files
-%.o: %.c
-	$(CC) $(CFLAGS) -c $< -o $@
+# Compile source files to object files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/*/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(MYSQL_CFLAGS) -c $< -o $@
 
-# Clean build files
+$(BUILD_DIR)/%.o: $(SRC_DIR)/%.c
+	@mkdir -p $(dir $@)
+	$(CC) $(CFLAGS) $(MYSQL_CFLAGS) -c $< -o $@
+
+# Clean build artifacts
 clean:
-	rm -f $(OBJECTS) $(TARGET)
+	rm -rf $(BUILD_DIR) $(BIN_DIR)
+	@echo "Cleaned build artifacts"
 
-# Install MySQL development libraries (for Ubuntu/WSL)
-install-deps:
-	sudo apt-get update
-	sudo apt-get install -y libmysqlclient-dev build-essential
-
-# Run the test
-test: $(TARGET)
+# Run the server
+run: $(TARGET)
 	./$(TARGET)
-
-# Help
-help:
-	@echo "Available targets:"
-	@echo "  all         - Build the test program"
-	@echo "  clean       - Remove build files"
-	@echo "  install-deps- Install required dependencies"
-	@echo "  test        - Build and run the test program"
-	@echo "  help        - Show this help message"
-
-.PHONY: all clean install-deps test help

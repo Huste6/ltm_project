@@ -107,7 +107,7 @@
 // ==========================================
 
 /**
- * @brief Cấu trúc message gửi/nhận
+ * @brief Cấu trúc message gửi
  * Format: COMMAND param1|param2|...\n
  * hoặc: CODE DATA length\n<data>
  */

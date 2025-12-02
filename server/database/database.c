@@ -54,12 +54,13 @@ int db_check_username_exists(Database *db, const char *username) {
     char query[256];
     snprintf(query, sizeof(query), "SELECT COUNT(*) FROM users WHERE username='%s'", username);
     
+    // conn dùng để thực hiện truy vấn MySQL
     if (mysql_query(db->conn, query) != 0) {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
     MYSQL_RES *result = mysql_store_result(db->conn); // Lấy kết quả truy vấn
-    MYSQL_ROW row = mysql_fetch_row(result); 
+    MYSQL_ROW row = mysql_fetch_row(result); // Lấy dòng đầu tiên
     int exists = atoi(row[0]) > 0; // Nếu > 0 thì tồn tại
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
@@ -130,8 +131,7 @@ int db_verify_session(Database *db, const char *session_id, char *username_out) 
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
-    snprintf(query, sizeof(query), "SELECT username FROM sessions WHERE session_id='%s' AND is_active = 1"
-        "AND TIMESTAMPDIFF(MINUTE, last_activity, NOW()) < 30", session_id);
+    snprintf(query, sizeof(query), "SELECT username FROM sessions WHERE session_id='%s' AND is_active = 1", session_id);
 
     if (mysql_query(db->conn, query) != 0) {
         pthread_mutex_unlock(&db->mutex);
@@ -200,17 +200,11 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
     pthread_mutex_lock(&db->mutex); 
 
     char query[2048];
-    char safe_details[1024] = {0};
-
-    if (details) {
-        mysql_real_escape_string(db->conn, safe_details, details, strlen(details));
-    }
     
     snprintf(query, sizeof(query),
             "INSERT INTO activity_logs (level, username, action, details) "
             "VALUES ('%s', '%s', '%s', '%s')",
-            level, username ? username : "SYSTEM", action, safe_details);
-    
+            level, username ? username : "SYSTEM", action, details);
 
     if (mysql_query(db->conn, query) != 0) {
         fprintf(stderr, "Failed to log activity: %s\n", mysql_error(db->conn));

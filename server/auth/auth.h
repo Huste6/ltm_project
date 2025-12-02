@@ -52,7 +52,7 @@ void handle_login(Server *server, ClientSession *client, Message *msg);
  * 3. Update state về CONNECTED
  * 4. Response: 132 LOGOUT_OK
  */
-void handle_logout(Server *server, ClientSession *client, Message *msg);
+void handle_logout(Server *server, ClientSession *client);
 
 /**
  * @brief Kiểm tra client đã authenticate chưa
