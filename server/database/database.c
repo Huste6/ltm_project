@@ -54,12 +54,13 @@ int db_check_username_exists(Database *db, const char *username) {
     char query[256];
     snprintf(query, sizeof(query), "SELECT COUNT(*) FROM users WHERE username='%s'", username);
     
+    // conn dùng để thực hiện truy vấn MySQL
     if (mysql_query(db->conn, query) != 0) {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
     MYSQL_RES *result = mysql_store_result(db->conn); // Lấy kết quả truy vấn
-    MYSQL_ROW row = mysql_fetch_row(result); 
+    MYSQL_ROW row = mysql_fetch_row(result); // Lấy dòng đầu tiên
     int exists = atoi(row[0]) > 0; // Nếu > 0 thì tồn tại
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);

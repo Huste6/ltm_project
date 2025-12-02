@@ -61,7 +61,7 @@ int client_send_command(Client *client, const char *command, const char **params
     char buffer[BUFFER_SIZE];
     int len = create_control_message(command, params, param_count, buffer, sizeof(buffer));
     if(len <= 0){
-        fprintf("Failed to create command message\n");
+        fprintf(stderr, "Failed to create command message\n");
         return -1;
     }
 
@@ -96,7 +96,7 @@ int client_receive_response(Client *client, Response *response) {
         sscanf(temp, "%d DATA %zu", &code, &data_len);
         
         response->code = code;
-        response->data_len = data_len;
+        response->data_length = data_len;
         
         // Receive data
         response->data = malloc(data_len + 1);
@@ -133,7 +133,7 @@ int client_receive_response(Client *client, Response *response) {
         }
         
         response->data = NULL;
-        response->data_len = 0;
+        response->data_length = 0;
     }
     
     return 0;

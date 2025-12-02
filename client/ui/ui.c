@@ -36,12 +36,7 @@ void ui_print_menu_main() {
  */
 void ui_print_menu_authenticated() {
     printf("\n=== MAIN MENU (Logged in) ===\n");
-    printf("1. Practice Mode\n");
-    printf("2. Create Room\n");
-    printf("3. List Rooms\n");
-    printf("4. Join Room\n");
-    printf("5. View Results\n");
-    printf("6. Logout\n");
+    printf("1. Logout\n");
     printf("0. Exit\n");
     printf("Choice: ");
 }
@@ -77,7 +72,7 @@ void ui_show_info(const char *message) {
 /**
  * @brief Wait for user to press Enter
  */
-void ui_wait_for_enter() {
+void ui_wait_enter() {
     printf("Press Enter to continue...");
     while (getchar() != '\n');
 }
