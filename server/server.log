@@ -1,0 +1,51 @@
+[2025-12-08 00:18:27] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-08 00:18:27] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-08 00:18:27] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-08 00:18:27] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-08 00:18:58] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:54340
+[2025-12-08 00:19:07] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:19:18] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:43322
+[2025-12-08 00:19:36] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:19:42] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:49140
+[2025-12-08 00:19:47] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:19:52] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:53284
+[2025-12-08 00:19:55] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:20:00] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:35334
+[2025-12-08 00:20:04] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:20:40] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-08 00:20:40] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-08 00:20:40] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-08 00:20:40] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-08 00:20:54] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:50812
+[2025-12-08 00:21:02] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:21:08] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:36642
+[2025-12-08 00:21:11] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:21:16] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:53988
+[2025-12-08 00:21:16] [WARNING] [anonymous] BAD_COMMAND: Unknown command: LIST_ROOMS
+[2025-12-08 00:21:17] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:21:26] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:46422
+[2025-12-08 00:21:26] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:21:35] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:39844
+[2025-12-08 00:21:35] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:21:41] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:39850
+[2025-12-08 00:21:41] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:21:46] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:40136
+[2025-12-08 00:21:47] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:22:09] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:52986
+[2025-12-08 00:22:11] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:22:42] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-08 00:22:42] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-08 00:22:42] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-08 00:22:42] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-08 00:22:48] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:44898
+[2025-12-08 00:22:48] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:23:00] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:37526
+[2025-12-08 00:23:01] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:23:06] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:48270
+[2025-12-08 00:23:07] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:23:11] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:48276
+[2025-12-08 00:23:12] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-08 00:23:17] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:45186
+[2025-12-08 00:23:18] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-08 00:23:23] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:45190
+[2025-12-08 00:23:24] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected

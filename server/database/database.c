@@ -252,8 +252,8 @@ int db_get_rooms_json(Database *db, const char *status_filter, char **json_out)
     char query[1024];
     const char *base_query =
         "SELECT r.room_id, r.room_name, r.creator, r.status, "
-        "COALESCE(COUNT(p.username), 0) AS participants, "
-        "r.num_questions, r.time_limit_minutes, r.created_at "
+        "COALESCE(COUNT(p.username), 0) AS participant_count, "
+        "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
         "FROM rooms r "
         "LEFT JOIN participants p ON r.room_id = p.room_id ";
 
@@ -325,10 +325,13 @@ int db_get_rooms_json(Database *db, const char *status_filter, char **json_out)
         first = 0;
 
         // Add room object
+        // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
+        // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
+        // row[7]=time_limit_minutes, row[8]=created_at
         json_len += snprintf(json + json_len, json_capacity - json_len,
-                             "{\"room_id\":\"%s\",\"name\":\"%s\",\"creator\":\"%s\",\"status\":\"%s\","
-                             "\"participants\":%s,\"num_questions\":%s,\"time_limit\":%s,\"created_at\":\"%s\"}",
-                             row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]);
+                             "{\"room_id\":\"%s\",\"room_name\":\"%s\",\"creator_id\":\"%s\",\"status\":\"%s\","
+                             "\"participant_count\":%s,\"max_participants\":%s,\"duration_minutes\":%s,\"created_at\":\"%s\"}",
+                             row[0], row[1], row[2], row[3], row[4], row[5], row[7], row[8]);
     }
 
     // Close JSON
