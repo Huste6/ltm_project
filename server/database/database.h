@@ -4,7 +4,8 @@
 #include <mysql/mysql.h>
 #include <pthread.h>
 
-typedef struct {
+typedef struct
+{
     MYSQL *conn;
     pthread_mutex_t mutex;
 } Database;
@@ -31,5 +32,15 @@ int db_cleanup_expired_sessions(Database *db, int timeout_minutes);
 
 // Logging
 void db_log_activity(Database *db, const char *level, const char *username, const char *action, const char *details);
+
+// Room operations
+/**
+ * @brief Get rooms list as JSON string
+ * @param db Database connection
+ * @param status_filter Status filter (NULL = all, or "NOT_STARTED"/"IN_PROGRESS"/"FINISHED")
+ * @param json_out Pointer to store allocated JSON string (caller must free)
+ * @return 0 on success, -1 on error
+ */
+int db_get_rooms_json(Database *db, const char *status_filter, char **json_out);
 
 #endif // DATABASE_H

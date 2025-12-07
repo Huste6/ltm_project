@@ -1,23 +1,26 @@
 #include "server.h"
-#include <unistd.h> 
+#include <unistd.h>
 
 // main function
-int main(){
+int main()
+{
     Server server;
-    
+
     printf("===========================================\n");
     printf("   ONLINE EXAM SYSTEM SERVER\n");
     printf("===========================================\n\n");
 
-    if (server_init(&server, SERVER_PORT) != 0) {
+    if (server_init(&server, SERVER_PORT) != 0)
+    {
         fprintf(stderr, "Server initialization failed. Exiting.\n");
         return 1;
     }
 
     server_start(&server);
 
-    // cleanup
-    if (server.db) {
+    // Cleanup
+    if (server.db)
+    {
         db_disconnect(server.db);
         free(server.db);
         server.db = NULL;

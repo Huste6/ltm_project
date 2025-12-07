@@ -1,0 +1,32 @@
+===========================================
+   ONLINE EXAM SYSTEM SERVER
+===========================================
+
+Database connected successfully
+Server initialized and listening on port 8888
+=== EXAM SERVER STARTED ===
+New connection from 127.0.0.1:41624
+[Thread 125894616151744] Handling client socket 6
+[Thread 125894616151744] Received command: LIST_ROOMS
+New connection from 127.0.0.1:41640
+[Thread 125894607759040] Handling client socket 7
+[Thread 125894607759040] Received command: LIST_ROOMS|NOT_STARTED
+[2025-12-07 22:27:59] [WARNING] [anonymous] BAD_COMMAND: Unknown command: LIST_ROOMS|NOT_STARTED
+[Thread 125894607759040] Client socket 7 disconnected or error
+[Thread 125894607759040] Cleaning up client socket 7
+New connection from 127.0.0.1:41646
+[Thread 125894607759040] Handling client socket 8
+[Thread 125894607759040] Received command: LIST_ROOMS|IN_PROGRESS
+[2025-12-07 22:27:59] [WARNING] [anonymous] BAD_COMMAND: Unknown command: LIST_ROOMS|IN_PROGRESS
+[Thread 125894607759040] Client socket 8 disconnected or error
+[Thread 125894607759040] Cleaning up client socket 8
+New connection from 127.0.0.1:41658
+[Thread 125894607759040] Handling client socket 7
+[Thread 125894607759040] Received command: LIST_ROOMS|FINISHED
+[2025-12-07 22:27:59] [WARNING] [anonymous] BAD_COMMAND: Unknown command: LIST_ROOMS|FINISHED
+[Thread 125894607759040] Client socket 7 disconnected or error
+[Thread 125894607759040] Cleaning up client socket 7
+New connection from 127.0.0.1:41672
+[Thread 125894607759040] Handling client socket 8
+[Thread 125894607759040] Received command: LIST_ROOMS|INVALID_STATUS
+[2025-12-07 22:27:59] [WARNING] [anonymous] BAD_COMMAND: Unknown command: LIST_ROOMS|INVALID_STATUS

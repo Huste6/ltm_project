@@ -4,25 +4,30 @@
 #include <string.h>
 #include <time.h>
 
-int db_connect(Database *db, const char *host, const char *user, const char *password, const char *dbname) {
+int db_connect(Database *db, const char *host, const char *user, const char *password, const char *dbname)
+{
     return db_connect_with_port(db, host, user, password, dbname, 3306);
 }
 
-int db_connect_with_port(Database *db, const char *host, const char *user, const char *password, const char *dbname, unsigned int port) {
+int db_connect_with_port(Database *db, const char *host, const char *user, const char *password, const char *dbname, unsigned int port)
+{
     db->conn = mysql_init(NULL);
-    if (db->conn == NULL) {
+    if (db->conn == NULL)
+    {
         fprintf(stderr, "mysql_init() failed\n");
         return -1;
     }
 
     // Kết nối với port cụ thể
-    if (mysql_real_connect(db->conn, host, user, password, dbname, port, NULL, 0) == NULL) {
+    if (mysql_real_connect(db->conn, host, user, password, dbname, port, NULL, 0) == NULL)
+    {
         fprintf(stderr, "mysql_real_connect() failed: %s\n", mysql_error(db->conn));
         mysql_close(db->conn);
         return -1;
     }
 
-    if (pthread_mutex_init(&db->mutex, NULL) != 0) {
+    if (pthread_mutex_init(&db->mutex, NULL) != 0)
+    {
         fprintf(stderr, "Mutex init failed\n");
         mysql_close(db->conn);
         return -1;
@@ -31,13 +36,15 @@ int db_connect_with_port(Database *db, const char *host, const char *user, const
     return 0;
 }
 
-void db_disconnect(Database *db) {
+void db_disconnect(Database *db)
+{
     pthread_mutex_destroy(&db->mutex);
     mysql_close(db->conn);
 }
 
 // ============================= User operations ===============================
-int db_create_user(Database *db, const char *username, const char *password_hash){
+int db_create_user(Database *db, const char *username, const char *password_hash)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
@@ -48,31 +55,35 @@ int db_create_user(Database *db, const char *username, const char *password_hash
     return result == 0 ? 0 : -1;
 }
 
-int db_check_username_exists(Database *db, const char *username) {
+int db_check_username_exists(Database *db, const char *username)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
     snprintf(query, sizeof(query), "SELECT COUNT(*) FROM users WHERE username='%s'", username);
-    
+
     // conn dùng để thực hiện truy vấn MySQL
-    if (mysql_query(db->conn, query) != 0) {
+    if (mysql_query(db->conn, query) != 0)
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
     MYSQL_RES *result = mysql_store_result(db->conn); // Lấy kết quả truy vấn
-    MYSQL_ROW row = mysql_fetch_row(result); // Lấy dòng đầu tiên
-    int exists = atoi(row[0]) > 0; // Nếu > 0 thì tồn tại
+    MYSQL_ROW row = mysql_fetch_row(result);          // Lấy dòng đầu tiên
+    int exists = atoi(row[0]) > 0;                    // Nếu > 0 thì tồn tại
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
     return exists;
 }
 
-int db_verify_login(Database *db, const char *username, const char *password_hash) {
+int db_verify_login(Database *db, const char *username, const char *password_hash)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
     snprintf(query, sizeof(query), "SELECT COUNT(*) FROM users WHERE username='%s' AND password_hash='%s'", username, password_hash);
-    if (mysql_query(db->conn, query) != 0) {
+    if (mysql_query(db->conn, query) != 0)
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
@@ -82,16 +93,18 @@ int db_verify_login(Database *db, const char *username, const char *password_has
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
-    
+
     return valid;
 }
 
-int db_is_account_locked(Database *db, const char *username) {
+int db_is_account_locked(Database *db, const char *username)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
     snprintf(query, sizeof(query), "SELECT is_locked FROM users WHERE username='%s'", username);
-    if (mysql_query(db->conn, query) != 0) {
+    if (mysql_query(db->conn, query) != 0)
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
@@ -99,18 +112,20 @@ int db_is_account_locked(Database *db, const char *username) {
     MYSQL_RES *result = mysql_store_result(db->conn);
     MYSQL_ROW row = mysql_fetch_row(result);
     int is_locked = 0;
-    if (row != NULL) {
+    if (row != NULL)
+    {
         is_locked = atoi(row[0]);
     }
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
-    
+
     return is_locked;
 }
 
 // ============================ Session operations =============================
-int db_create_session(Database *db, const char *session_id, const char *username) {
+int db_create_session(Database *db, const char *session_id, const char *username)
+{
     pthread_mutex_lock(&db->mutex);
 
     // Deactivate existing sessions
@@ -127,21 +142,25 @@ int db_create_session(Database *db, const char *session_id, const char *username
     return result == 0 ? 0 : -1;
 }
 
-int db_verify_session(Database *db, const char *session_id, char *username_out) {
+int db_verify_session(Database *db, const char *session_id, char *username_out)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
     snprintf(query, sizeof(query), "SELECT username FROM sessions WHERE session_id='%s' AND is_active = 1"
-        "AND TIMESTAMPDIFF(MINUTE, last_activity, NOW()) < 30", session_id);
+                                   "AND TIMESTAMPDIFF(MINUTE, last_activity, NOW()) < 30",
+             session_id);
 
-    if (mysql_query(db->conn, query) != 0) {
+    if (mysql_query(db->conn, query) != 0)
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
     MYSQL_RES *result = mysql_store_result(db->conn);
     MYSQL_ROW row = mysql_fetch_row(result);
-    if (row) {
+    if (row)
+    {
         strncpy(username_out, row[0], 255);
         username_out[255] = '\0';
         mysql_free_result(result);
@@ -151,10 +170,11 @@ int db_verify_session(Database *db, const char *session_id, char *username_out) 
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
-    return 0; 
+    return 0;
 }
 
-int db_destroy_session(Database *db, const char *session_id) {
+int db_destroy_session(Database *db, const char *session_id)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
@@ -165,12 +185,14 @@ int db_destroy_session(Database *db, const char *session_id) {
     return result == 0 ? 0 : -1;
 }
 
-int db_check_user_logged_in(Database *db, const char *username) {
+int db_check_user_logged_in(Database *db, const char *username)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
     snprintf(query, sizeof(query), "SELECT COUNT(*) FROM sessions WHERE username='%s' AND is_active = 1", username);
-    if (mysql_query(db->conn, query) != 0) {
+    if (mysql_query(db->conn, query) != 0)
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
@@ -185,7 +207,8 @@ int db_check_user_logged_in(Database *db, const char *username) {
     return logged_in;
 }
 
-int db_cleanup_expired_sessions(Database *db, int timeout_minutes) {
+int db_cleanup_expired_sessions(Database *db, int timeout_minutes)
+{
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
@@ -197,24 +220,123 @@ int db_cleanup_expired_sessions(Database *db, int timeout_minutes) {
 }
 
 // =============================== Logging =====================================
-void db_log_activity(Database *db, const char *level, const char *username, const char *action, const char *details) {
-    pthread_mutex_lock(&db->mutex); 
+void db_log_activity(Database *db, const char *level, const char *username, const char *action, const char *details)
+{
+    pthread_mutex_lock(&db->mutex);
 
     char query[2048];
     char safe_details[1024] = {0};
 
-    if (details) {
+    if (details)
+    {
         mysql_real_escape_string(db->conn, safe_details, details, strlen(details));
     }
-    
-    snprintf(query, sizeof(query),
-            "INSERT INTO activity_logs (level, username, action, details) "
-            "VALUES ('%s', '%s', '%s', '%s')",
-            level, username ? username : "SYSTEM", action, safe_details);
-    
 
-    if (mysql_query(db->conn, query) != 0) {
+    snprintf(query, sizeof(query),
+             "INSERT INTO activity_logs (level, username, action, details) "
+             "VALUES ('%s', '%s', '%s', '%s')",
+             level, username ? username : "SYSTEM", action, safe_details);
+
+    if (mysql_query(db->conn, query) != 0)
+    {
         fprintf(stderr, "Failed to log activity: %s\n", mysql_error(db->conn));
     }
     pthread_mutex_unlock(&db->mutex);
+}
+
+// ============================= Room operations ===============================
+int db_get_rooms_json(Database *db, const char *status_filter, char **json_out)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[1024];
+    const char *base_query =
+        "SELECT r.room_id, r.room_name, r.creator, r.status, "
+        "COALESCE(COUNT(p.username), 0) AS participants, "
+        "r.num_questions, r.time_limit_minutes, r.created_at "
+        "FROM rooms r "
+        "LEFT JOIN participants p ON r.room_id = p.room_id ";
+
+    // Filter by status if provided
+    if (status_filter != NULL && strlen(status_filter) > 0)
+    {
+        snprintf(query, sizeof(query), "%s WHERE r.status = '%s' GROUP BY r.room_id ORDER BY r.created_at DESC",
+                 base_query, status_filter);
+    }
+    else
+    {
+        snprintf(query, sizeof(query), "%s GROUP BY r.room_id ORDER BY r.created_at DESC", base_query);
+    }
+
+    if (mysql_query(db->conn, query) != 0)
+    {
+        fprintf(stderr, "Query failed: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (result == NULL)
+    {
+        fprintf(stderr, "mysql_store_result() failed: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Build JSON string
+    size_t json_capacity = 4096;
+    size_t json_len = 0;
+    char *json = malloc(json_capacity);
+    if (!json)
+    {
+        mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Start JSON
+    json_len += snprintf(json + json_len, json_capacity - json_len, "{\"rooms\":[");
+
+    MYSQL_ROW row;
+    int first = 1;
+
+    // Fetch each row and append to JSON
+    while ((row = mysql_fetch_row(result)) != NULL)
+    {
+        // Ensure enough capacity
+        if (json_capacity - json_len < 512)
+        {
+            json_capacity *= 2;
+            char *new_json = realloc(json, json_capacity);
+            if (!new_json)
+            {
+                free(json);
+                mysql_free_result(result);
+                pthread_mutex_unlock(&db->mutex);
+                return -1;
+            }
+            json = new_json;
+        }
+
+        if (!first) // Add comma between objects
+        {
+            json_len += snprintf(json + json_len, json_capacity - json_len, ",");
+        }
+        first = 0;
+
+        // Add room object
+        json_len += snprintf(json + json_len, json_capacity - json_len,
+                             "{\"room_id\":\"%s\",\"name\":\"%s\",\"creator\":\"%s\",\"status\":\"%s\","
+                             "\"participants\":%s,\"num_questions\":%s,\"time_limit\":%s,\"created_at\":\"%s\"}",
+                             row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7]);
+    }
+
+    // Close JSON
+    json_len += snprintf(json + json_len, json_capacity - json_len, "]}");
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    *json_out = json;
+    return 0;
 }
