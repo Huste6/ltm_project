@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include "protocol/protocol.h"
 #include "database/database.h"
+#include "logger/logger.h"
 
 #define MAX_CLIENTS 100
 #define SERVER_PORT 8888
@@ -56,6 +57,6 @@ ClientSession* find_session_by_username(Server *server, const char *username);
 void remove_client_session(Server *server, int socket_fd);
 
 // Utility functions
-void send_error(int socket_fd, int code, const char *message);
+void send_error_or_response(int socket_fd, int code, const char *message);
 
 #endif // SERVER_H

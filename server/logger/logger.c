@@ -46,10 +46,10 @@ void logger_close() {
  */
 const char* log_level_string(LogLevel level) {
     switch(level) {
-        case LOG_INFO: return "INFO";
-        case LOG_WARNING: return "WARNING";
-        case LOG_ERROR: return "ERROR";
-        default: return "UNKNOWN";
+        case LOG_INFO: return "INFO"; // Bình thường
+        case LOG_WARNING: return "WARNING"; // Cảnh báo
+        case LOG_ERROR: return "ERROR"; // Lỗi nghiêm trọng
+        default: return "UNKNOWN"; // Không xác định
     }
 }
 
