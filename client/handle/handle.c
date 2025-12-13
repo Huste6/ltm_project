@@ -197,7 +197,6 @@ void handle_list_rooms(Client *client)
         ui_show_error("Failed to send command");
         return;
     }
-
     // Receive response
     Response resp;
     if (client_receive_response(client, &resp) < 0)
@@ -209,65 +208,10 @@ void handle_list_rooms(Client *client)
     if (resp.code == CODE_ROOMS_DATA && resp.data)
     {
         printf("\n=== AVAILABLE ROOMS ===\n");
-        printf("Filter: %s\n\n", filter);
+        printf("Filter: %s\n", filter);
+        printf("Data received: %zu bytes\n\n", resp.data_length);
+        printf("%s\n", resp.data);
 
-        // Parse and display JSON data
-        // Simple parsing: look for room_id fields
-        printf("%-12s | %-20s | %-12s | %-12s | %-6s\n", 
-               "Room ID", "Room Name", "Creator", "Status", "Users");
-        printf("%-12s-+-%-20s-+-%-12s-+-%-12s-+-%-6s\n", 
-               "------------", "--------------------", "------------", "------------", "------");
-
-        // Parse JSON manually (simple approach)
-        const char *json = resp.data;
-        const char *room_start = json;
-        int room_count = 0;
-
-        // Count rooms in JSON by counting "room_id" fields
-        while ((room_start = strstr(room_start, "\"room_id\"")) != NULL) {
-            room_count++;
-            room_start++;
-        }
-
-        if (room_count == 0) {
-            printf("No rooms found.\n");
-        } else {
-            // Simple extraction of key fields
-            // Note: For production, use a proper JSON library like cJSON
-            char room_id[32], room_name[64], creator[32], status[32];
-            const char *pos = json;
-
-            for (int i = 0; i < room_count; i++) {
-                // Extract room_id
-                if (sscanf(pos, "%*[^:]:\"%31[^\"]\"", room_id) != 1) break;
-                
-                // Find room_name
-                pos = strstr(pos, "room_name");
-                if (!pos) break;
-                if (sscanf(pos, "%*[^:]:\"%63[^\"]\"", room_name) != 1) break;
-                
-                // Find creator
-                pos = strstr(pos, "creator");
-                if (!pos) break;
-                if (sscanf(pos, "%*[^:]:\"%31[^\"]\"", creator) != 1) break;
-                
-                // Find status
-                pos = strstr(pos, "\"status\"");
-                if (!pos) break;
-                if (sscanf(pos, "%*[^:]:\"%31[^\"]\"", status) != 1) break;
-
-                // Display room info
-                printf("%-12s | %-20s | %-12s | %-12s | %-6d\n",
-                       room_id, room_name, creator, status, 1);
-
-                // Move to next room
-                pos = strstr(pos, "},");
-                if (!pos) break;
-                pos++;
-            }
-        }
-
-        printf("\nTotal: %d room(s) found\n", room_count);
         free(resp.data);
     }
     else
