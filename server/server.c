@@ -171,6 +171,7 @@ void server_start(Server *server)
 
 /**
  * @brief Handle client connection
+ * nhận và xử lý các command từ client
  */
 void *handle_client(void *arg)
 {
@@ -301,6 +302,7 @@ void *handle_client(void *arg)
 
 /**
  * @brief Find session by socket
+ * dùng để kiểm tra client đã đăng nhập chưa
  */
 ClientSession *find_session_by_socket(Server *server, int socket_fd)
 {
@@ -320,6 +322,7 @@ ClientSession *find_session_by_socket(Server *server, int socket_fd)
 
 /**
  * @brief Find session by username
+ * dùng để kiểm tra client đã đăng nhập chưa
  */
 ClientSession *find_session_by_username(Server *server, const char *username)
 {

@@ -55,7 +55,8 @@ void client_disconnect(Client *client) {
 }
 
 /**
- * @brief Send command to server
+ * @brief Send command to server 
+ * ví dụ: send_command("LOGIN", ["john", "pass123"], 2) -> "LOGIN john|pass123\n"
  */
 int client_send_command(Client *client, const char *command, const char **params, int param_count) {
     char buffer[BUFFER_SIZE];
@@ -70,6 +71,19 @@ int client_send_command(Client *client, const char *command, const char **params
 
 /**
  * @brief Receive response from server
+ * ví dụ: "110 LOGIN_OK sess_12345\n" hoặc "140 DATA 1234\n<1234 bytes>" sau đó lưu vào struct Response
+ * 1. Control message: CODE MESSAGE\n
+ * Response str:
+ *  response->code = CODE
+ *  response->message = MESSAGE
+ *  response->data = NULL
+ *  response->data_length = 0
+ * 2. Data message: CODE DATA <length>\n<data>
+ * Response str:
+ *  response->code = CODE
+ *  response->message = ""
+ *  response->data = <data>
+ *  response->data_length = <length>
  */
 int client_receive_response(Client *client, Response *response) {
     char buffer[BUFFER_SIZE];

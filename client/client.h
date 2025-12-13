@@ -11,11 +11,11 @@
  * @brief Client states
  */
 typedef enum {
-    CLIENT_DISCONNECTED,
-    CLIENT_CONNECTED,
-    CLIENT_AUTHENTICATED,
-    CLIENT_IN_ROOM,
-    CLIENT_IN_EXAM
+    CLIENT_DISCONNECTED,  // chưa kết nối
+    CLIENT_CONNECTED,     // đã kết nối nhưng chưa đăng nhập
+    CLIENT_AUTHENTICATED, // đã đăng nhập
+    CLIENT_IN_ROOM,       // đang trong phòng thi
+    CLIENT_IN_EXAM        // đang trong phòng làm bài
 } ClientState;
 
 /**

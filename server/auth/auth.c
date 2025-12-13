@@ -10,10 +10,10 @@
  */
 void sha256_hash(const char *input, char output[65]) {
     unsigned char hash[SHA256_DIGEST_LENGTH];
-    SHA256((unsigned char*)input, strlen(input), hash);
+    SHA256((unsigned char*)input, strlen(input), hash); // hash là dữ liệu nhị phân
 
     for (int i = 0; i < SHA256_DIGEST_LENGTH; i++) {
-        sprintf(output + (i * 2), "%02x", hash[i]);
+        sprintf(output, "%02x", hash[i]);
     }
     output[64] = '\0';
 }
@@ -76,6 +76,7 @@ void handle_register(Server *server, ClientSession *client, Message *msg) {
 
 /**
  * @brief Handle LOGIN command
+ * send session_id if success
  */
 void handle_login(Server *server, ClientSession *client, Message *msg) {
     // Check params
@@ -134,6 +135,7 @@ void handle_login(Server *server, ClientSession *client, Message *msg) {
     strcpy(client->session_id, session_id);
     strcpy(client->username, username);
     client->state = STATE_AUTHENTICATED;
+    // clientSession lưu session_id, username, state
     
     // Send response
     send_error_or_response(client->socket_fd, CODE_LOGIN_OK, session_id);

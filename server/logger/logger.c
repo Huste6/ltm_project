@@ -66,10 +66,10 @@ void log_event(LogLevel level, const char *username, const char *action, const c
 
     // Format message
     char message[1024];
-    va_list args;
-    va_start(args, format);
-    vsnprintf(message, sizeof(message), format, args);
-    va_end(args);
+    va_list args; // dùng để duyệt qua các tham số biến thiên
+    va_start(args, format); // bắt đầu lấy tham số sau format 
+    vsnprintf(message, sizeof(message), format, args); 
+    va_end(args); // kết thúc lấy tham số biến thiên
 
     // Format log entry
     char log_entry[2048];
@@ -86,7 +86,7 @@ void log_event(LogLevel level, const char *username, const char *action, const c
         fflush(log_file);
     }
 
-    // Also write to stdout for important messages
+    // in ra console nếu là lỗi hoặc cảnh báo
     if (level == LOG_ERROR || level == LOG_WARNING) {
         fputs(log_entry, stdout);
         fflush(stdout);
