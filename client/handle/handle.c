@@ -8,40 +8,48 @@
 /**
  * @brief Handle user register
  */
-void handle_register(Client *client) {
+void handle_register(Client *client)
+{
     char username[64], password[64];
 
     printf("=== REGISTER  ===\n");
     ui_get_input("Enter username (3-20 chars): ", username, sizeof(username));
     ui_get_input("Enter password (min 8 chars, upper, lower, digit): ", password, sizeof(password));
 
-    // validate 
-    if (!validate_username(username)) {
+    // validate
+    if (!validate_username(username))
+    {
         ui_show_error("Invalid username format.");
         return;
     }
-    if (!validate_password(password)) {
+    if (!validate_password(password))
+    {
         ui_show_error("Invalid password format.");
         return;
     }
 
-    // send REGISTER command    
+    // send REGISTER command
     const char *params[] = {username, password};
-    if (client_send_command(client, "REGISTER", params, 2) < 0) {
+    if (client_send_command(client, "REGISTER", params, 2) < 0)
+    {
         ui_show_error("Failed to send REGISTER command.");
         return;
     }
 
     // receive response
     Response response;
-    if (client_receive_response(client, &response) < 0) {
+    if (client_receive_response(client, &response) < 0)
+    {
         ui_show_error("Failed to receive response from server.");
         return;
     }
 
-    if(response.code == CODE_CREATED) {
+    if (response.code == CODE_CREATED)
+    {
         ui_show_success("Registration successful! You can now login.");
-    } else {
+    }
+    else
+    {
         char msg[256];
         snprintf(msg, sizeof(msg), "Registration failed: %s", response.message);
         ui_show_error(msg);
@@ -51,7 +59,8 @@ void handle_register(Client *client) {
 /**
  * @brief Handle user login
  */
-void handle_login(Client *client) {
+void handle_login(Client *client)
+{
     char username[64], password[64];
 
     printf("=== LOGIN ===\n");
@@ -60,29 +69,34 @@ void handle_login(Client *client) {
 
     // send LOGIN command
     const char *params[] = {username, password};
-    if (client_send_command(client, "LOGIN", params, 2) < 0) {
+    if (client_send_command(client, "LOGIN", params, 2) < 0)
+    {
         ui_show_error("Failed to send LOGIN command.");
         return;
     }
 
     // receive response
     Response response;
-    if (client_receive_response(client, &response) < 0) {
+    if (client_receive_response(client, &response) < 0)
+    {
         ui_show_error("Failed to receive response from server.");
         return;
     }
 
-    if (response.code == CODE_LOGIN_OK) {
+    if (response.code == CODE_LOGIN_OK)
+    {
         strncpy(client->username, username, sizeof(client->username) - 1);
         strncpy(client->session_id, response.message, sizeof(client->session_id) - 1);
         client->state = CLIENT_AUTHENTICATED;
-        
+
         char msg[256];
         snprintf(msg, sizeof(msg), "Welcome back, %s!", username);
         ui_show_success(msg);
-        
+
         printf("Session ID: %s\n", client->session_id);
-    } else {
+    }
+    else
+    {
         char error[256];
         snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
         ui_show_error(error);
@@ -92,30 +106,186 @@ void handle_login(Client *client) {
 /**
  * @brief Handle user logout
  */
-void handle_logout(Client *client) {
+void handle_logout(Client *client)
+{
     printf("\n=== LOGOUT ===\n");
-    
+
     // Send command
-    if (client_send_command(client, "LOGOUT", NULL, 0) < 0) {
+    if (client_send_command(client, "LOGOUT", NULL, 0) < 0)
+    {
         ui_show_error("Failed to send command");
         return;
     }
-    
+
     // Receive response
     Response response;
-    if (client_receive_response(client, &response) < 0) {
+    if (client_receive_response(client, &response) < 0)
+    {
         ui_show_error("Failed to receive response");
         return;
     }
-    
-    if (response.code == CODE_LOGOUT_OK) {
+
+    if (response.code == CODE_LOGOUT_OK)
+    {
         ui_show_success("Logged out successfully. Goodbye!");
         client->state = CLIENT_CONNECTED;
         memset(client->username, 0, sizeof(client->username));
         memset(client->session_id, 0, sizeof(client->session_id));
-    } else {
+    }
+    else
+    {
         char error[256];
         snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
+        ui_show_error(error);
+    }
+}
+
+/**
+ * @brief Handle list rooms
+ */
+void handle_list_rooms(Client *client)
+{
+    char filter[32];
+    char input_line[32];
+    int choice = -1;
+
+    printf("\n=== LIST ROOMS ===\n");
+    printf("Select filter:\n");
+    printf("1. NOT_STARTED\n");
+    printf("2. IN_PROGRESS\n");
+    printf("3. FINISHED\n");
+    printf("0. ALL (default)\n");
+    printf("Choice (press Enter for ALL): ");
+    fflush(stdout);
+
+    // Read entire line
+    if (fgets(input_line, sizeof(input_line), stdin) != NULL)
+    {
+        // Try to parse as integer
+        if (sscanf(input_line, "%d", &choice) != 1)
+        {
+            choice = 0; // Default to ALL if not a number or empty
+        }
+    }
+    else
+    {
+        choice = 0; // Default to ALL on EOF
+    }
+
+    switch (choice)
+    {
+    case 1:
+        strcpy(filter, "NOT_STARTED");
+        break;
+    case 2:
+        strcpy(filter, "IN_PROGRESS");
+        break;
+    case 3:
+        strcpy(filter, "FINISHED");
+        break;
+    case 0:
+    default:
+        strcpy(filter, "ALL");
+        break;
+    }
+
+    // Send command
+    const char *params[] = {filter};
+    int param_count = (strcmp(filter, "ALL") == 0) ? 0 : 1;
+    if (client_send_command(client, "LIST_ROOMS", params, param_count) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_ROOMS_DATA && resp.data)
+    {
+        printf("\n=== AVAILABLE ROOMS ===\n");
+        printf("Filter: %s\n", filter);
+        printf("Data received: %zu bytes\n\n", resp.data_length);
+        printf("%s\n", resp.data);
+
+        free(resp.data);
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}
+/**
+ * @brief Handle create room
+ */
+void handle_create_room(Client *client)
+{
+    char room_name[128];
+    int num_questions, time_minutes;
+
+    printf("\n=== CREATE ROOM ===\n");
+    ui_get_input("Room name: ", room_name, sizeof(room_name));
+
+    printf("Number of questions (5-50): ");
+    scanf("%d", &num_questions);
+    printf("Time limit (minutes, 5-120): ");
+    scanf("%d", &time_minutes);
+    getchar();
+
+    // Validate parameters
+    if (num_questions < 5 || num_questions > 50)
+    {
+        ui_show_error("Number of questions must be between 5 and 50");
+        return;
+    }
+
+    if (time_minutes < 5 || time_minutes > 120)
+    {
+        ui_show_error("Time limit must be between 5 and 120 minutes");
+        return;
+    }
+
+    char q[16], t[16];
+    sprintf(q, "%d", num_questions);
+    sprintf(t, "%d", time_minutes);
+
+    // Send command
+    const char *params[] = {room_name, q, t};
+    if (client_send_command(client, "CREATE_ROOM", params, 3) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_ROOM_CREATED)
+    {
+        strncpy(client->current_room, resp.message, sizeof(client->current_room) - 1);
+        client->state = CLIENT_IN_ROOM;
+
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Room created successfully!");
+        ui_show_success(msg);
+        printf("Room ID: %s\n", resp.message);
+        printf("You are now in the room as creator.\n");
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
 }
