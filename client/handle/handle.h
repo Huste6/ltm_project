@@ -6,7 +6,7 @@
 /**
  * @brief Handle user registration
  * @param client Client instance
- * 
+ *
  * Flow:
  * 1. Get username and password from user
  * 2. Send REGISTER command to server
@@ -17,7 +17,7 @@ void handle_register(Client *client);
 /**
  * @brief Handle user login
  * @param client Client instance
- * 
+ *
  * Flow:
  * 1. Get username and password from user
  * 2. Send LOGIN command to server
@@ -29,12 +29,23 @@ void handle_login(Client *client);
 /**
  * @brief Handle user logout
  * @param client Client instance
- * 
+ *
  * Flow:
  * 1. Send LOGOUT command to server
  * 2. Clear client session data
  * 3. Update state to CONNECTED
  */
 void handle_logout(Client *client);
+
+/**
+ * @brief Handle list rooms
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Get filter parameter (ALL, NOT_STARTED, etc.)
+ * 2. Send LIST_ROOMS command
+ * 3. Receive and display room list (JSON)
+ */
+void handle_list_rooms(Client *client);
 
 #endif // HANDLE_H
