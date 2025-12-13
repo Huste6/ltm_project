@@ -286,14 +286,14 @@ char *db_list_rooms(Database *db, const char *status_filter)
 
     // Build JSON
     char *json = malloc(16384);
-    strcpy(json, "{\"rooms\":[");
+    strcpy(json, "{\n  \"rooms\": [\n");
 
     MYSQL_ROW row;
     int first = 1;
     while ((row = mysql_fetch_row(result)))
     {
         if (!first)
-            strcat(json, ",");
+            strcat(json, ",\n");
         first = 0;
 
         char room_entry[512];
@@ -305,10 +305,12 @@ char *db_list_rooms(Database *db, const char *status_filter)
                  "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
                  "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"}",
                  row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
+        strcat(json, "    "); // Indent 4 spaces
         strcat(json, room_entry);
+        strcat(json, "\n");
     }
 
-    strcat(json, "]}");
+    strcat(json, "\n  ]\n}");
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
