@@ -40,8 +40,9 @@ void ui_print_menu_main()
 void ui_print_menu_authenticated()
 {
     printf("\n=== MAIN MENU (Logged in) ===\n");
-    printf("1. List Rooms\n");
-    printf("2. Logout\n");
+    printf("1. Create Room\n");
+    printf("2. List Rooms\n");
+    printf("3. Logout\n");
     printf("0. Exit\n");
     printf("Choice: ");
 }

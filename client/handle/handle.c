@@ -221,3 +221,71 @@ void handle_list_rooms(Client *client)
         ui_show_error(error);
     }
 }
+/**
+ * @brief Handle create room
+ */
+void handle_create_room(Client *client)
+{
+    char room_name[128];
+    int num_questions, time_minutes;
+
+    printf("\n=== CREATE ROOM ===\n");
+    ui_get_input("Room name: ", room_name, sizeof(room_name));
+
+    printf("Number of questions (5-50): ");
+    scanf("%d", &num_questions);
+    printf("Time limit (minutes, 5-120): ");
+    scanf("%d", &time_minutes);
+    getchar();
+
+    // Validate parameters
+    if (num_questions < 5 || num_questions > 50)
+    {
+        ui_show_error("Number of questions must be between 5 and 50");
+        return;
+    }
+
+    if (time_minutes < 5 || time_minutes > 120)
+    {
+        ui_show_error("Time limit must be between 5 and 120 minutes");
+        return;
+    }
+
+    char q[16], t[16];
+    sprintf(q, "%d", num_questions);
+    sprintf(t, "%d", time_minutes);
+
+    // Send command
+    const char *params[] = {room_name, q, t};
+    if (client_send_command(client, "CREATE_ROOM", params, 3) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_ROOM_CREATED)
+    {
+        strncpy(client->current_room, resp.message, sizeof(client->current_room) - 1);
+        client->state = CLIENT_IN_ROOM;
+
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Room created successfully!");
+        ui_show_success(msg);
+        printf("Room ID: %s\n", resp.message);
+        printf("You are now in the room as creator.\n");
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}

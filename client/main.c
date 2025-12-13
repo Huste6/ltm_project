@@ -46,7 +46,6 @@ int main()
                 ui_show_error("Invalid choice!");
             }
             break;
-
         case CLIENT_AUTHENTICATED:
             ui_print_menu_authenticated();
             scanf("%d", &choice);
@@ -55,9 +54,12 @@ int main()
             switch (choice)
             {
             case 1:
-                handle_list_rooms(&client);
+                handle_create_room(&client);
                 break;
             case 2:
+                handle_list_rooms(&client);
+                break;
+            case 3:
                 handle_logout(&client);
                 break;
             case 0:
@@ -66,6 +68,9 @@ int main()
             default:
                 ui_show_error("Invalid choice!");
             }
+            break;
+        case CLIENT_IN_ROOM:
+            client.state = CLIENT_AUTHENTICATED;
             break;
 
         default:

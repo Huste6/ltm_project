@@ -34,20 +34,8 @@ int db_cleanup_expired_sessions(Database *db, int timeout_minutes);
 void db_log_activity(Database *db, const char *level, const char *username, const char *action, const char *details);
 
 // Room operations
-/**
- * @brief List rooms with optional filter
- * @param db Database structure
- * @param status_filter Status filter (ALL, NOT_STARTED, IN_PROGRESS, FINISHED)
- * @return JSON string (must be freed by caller), NULL on error
- */
+int db_create_room(Database *db, const char *room_id, const char *room_name, const char *creator, int num_questions, int time_limit);
 char *db_list_rooms(Database *db, const char *status_filter);
-
-/**
- * @brief Get room status
- * @param db Database structure
- * @param room_id Room ID
- * @return 0=NOT_STARTED, 1=IN_PROGRESS, 2=FINISHED, -1=NOT_FOUND
- */
 int db_get_room_status(Database *db, const char *room_id);
 
 #endif // DATABASE_H

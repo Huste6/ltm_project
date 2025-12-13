@@ -8,3 +8,38 @@
 [2025-12-13 16:16:47] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:33112
 [2025-12-13 16:30:58] [INFO] [quan] DISCONNECT: Client socket 6 disconnected
 [2025-12-13 16:30:58] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:23:53] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-13 18:23:53] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-13 18:23:53] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-13 18:23:53] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-13 18:24:05] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:59146
+[2025-12-13 18:24:07] [WARNING] [quan] BAD_COMMAND: Unknown command: QUIT
+[2025-12-13 18:24:11] [INFO] [quan] DISCONNECT: Client socket 6 disconnected
+[2025-12-13 18:24:11] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:24:11] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:59150
+[2025-12-13 18:24:12] [WARNING] [quan] BAD_COMMAND: Unknown command: QUIT
+[2025-12-13 18:24:14] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
+[2025-12-13 18:24:14] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:24:20] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:42420
+[2025-12-13 18:24:23] [INFO] [quan] DISCONNECT: Client socket 6 disconnected
+[2025-12-13 18:24:23] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:24:36] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:48432
+[2025-12-13 18:24:39] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
+[2025-12-13 18:24:39] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:24:50] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:53302
+[2025-12-13 18:24:53] [INFO] [quan] DISCONNECT: Client socket 6 disconnected
+[2025-12-13 18:24:53] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:25:01] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:45884
+[2025-12-13 18:25:04] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
+[2025-12-13 18:25:04] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:25:12] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:44536
+[2025-12-13 18:25:15] [INFO] [quan] DISCONNECT: Client socket 6 disconnected
+[2025-12-13 18:25:15] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:25:21] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:59426
+[2025-12-13 18:25:24] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
+[2025-12-13 18:25:24] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-13 18:25:30] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:46566
+[2025-12-13 18:25:33] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-13 18:25:48] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:53578
+[2025-12-13 18:25:53] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
+[2025-12-13 18:25:53] [INFO] [quan] DISCONNECT: Session destroyed

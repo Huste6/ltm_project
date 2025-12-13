@@ -245,6 +245,63 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
 }
 
 // ============================= Room operations ===============================
+int db_create_room(Database *db, const char *room_id, const char *room_name,
+                   const char *creator, int num_questions, int time_limit)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Start transaction
+    mysql_query(db->conn, "START TRANSACTION");
+
+    // Insert room (max_participants will use default value from schema)
+    char query1[512];
+    snprintf(query1, sizeof(query1),
+             "INSERT INTO rooms (room_id, room_name, creator, num_questions, time_limit_minutes) "
+             "VALUES ('%s', '%s', '%s', %d, %d)",
+             room_id, room_name, creator, num_questions, time_limit);
+
+    if (mysql_query(db->conn, query1))
+    {
+        mysql_query(db->conn, "ROLLBACK");
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Random select questions
+    char query2[512];
+    snprintf(query2, sizeof(query2),
+             "INSERT INTO room_questions (room_id, question_id, question_order) "
+             "SELECT '%s', id, @rownum := @rownum + 1 FROM questions, "
+             "(SELECT @rownum := 0) r ORDER BY RAND() LIMIT %d",
+             room_id, num_questions);
+
+    if (mysql_query(db->conn, query2))
+    {
+        mysql_query(db->conn, "ROLLBACK");
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Creator auto joins
+    char query3[512];
+    snprintf(query3, sizeof(query3),
+             "INSERT INTO participants (room_id, username) VALUES ('%s', '%s')",
+             room_id, creator);
+
+    if (mysql_query(db->conn, query3))
+    {
+        mysql_query(db->conn, "ROLLBACK");
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Commit transaction
+    mysql_query(db->conn, "COMMIT");
+
+    pthread_mutex_unlock(&db->mutex);
+    return 0;
+}
+
 char *db_list_rooms(Database *db, const char *status_filter)
 {
     pthread_mutex_lock(&db->mutex);
