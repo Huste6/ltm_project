@@ -35,12 +35,19 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
 
 // Room operations
 /**
- * @brief Get rooms list as JSON string
- * @param db Database connection
- * @param status_filter Status filter (NULL = all, or "NOT_STARTED"/"IN_PROGRESS"/"FINISHED")
- * @param json_out Pointer to store allocated JSON string (caller must free)
- * @return 0 on success, -1 on error
+ * @brief List rooms with optional filter
+ * @param db Database structure
+ * @param status_filter Status filter (ALL, NOT_STARTED, IN_PROGRESS, FINISHED)
+ * @return JSON string (must be freed by caller), NULL on error
  */
-int db_get_rooms_json(Database *db, const char *status_filter, char **json_out);
+char *db_list_rooms(Database *db, const char *status_filter);
+
+/**
+ * @brief Get room status
+ * @param db Database structure
+ * @param room_id Room ID
+ * @return 0=NOT_STARTED, 1=IN_PROGRESS, 2=FINISHED, -1=NOT_FOUND
+ */
+int db_get_room_status(Database *db, const char *room_id);
 
 #endif // DATABASE_H

@@ -245,101 +245,112 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
 }
 
 // ============================= Room operations ===============================
-int db_get_rooms_json(Database *db, const char *status_filter, char **json_out)
+char *db_list_rooms(Database *db, const char *status_filter)
 {
     pthread_mutex_lock(&db->mutex);
 
     char query[1024];
-    const char *base_query =
-        "SELECT r.room_id, r.room_name, r.creator, r.status, "
-        "COALESCE(COUNT(p.username), 0) AS participant_count, "
-        "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-        "FROM rooms r "
-        "LEFT JOIN participants p ON r.room_id = p.room_id ";
-
-    // Filter by status if provided
-    if (status_filter != NULL && strlen(status_filter) > 0)
+    if (strcmp(status_filter, "ALL") == 0)
     {
-        snprintf(query, sizeof(query), "%s WHERE r.status = '%s' GROUP BY r.room_id ORDER BY r.created_at DESC",
-                 base_query, status_filter);
+        snprintf(query, sizeof(query),
+                 "SELECT r.room_id, r.room_name, r.creator, r.status, "
+                 "COALESCE(COUNT(p.username), 0) as participant_count, "
+                 "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
+                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
+                 "GROUP BY r.room_id ORDER BY r.created_at DESC");
     }
     else
     {
-        snprintf(query, sizeof(query), "%s GROUP BY r.room_id ORDER BY r.created_at DESC", base_query);
+        snprintf(query, sizeof(query),
+                 "SELECT r.room_id, r.room_name, r.creator, r.status, "
+                 "COALESCE(COUNT(p.username), 0) as participant_count, "
+                 "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
+                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
+                 "WHERE r.status='%s' "
+                 "GROUP BY r.room_id ORDER BY r.created_at DESC",
+                 status_filter);
     }
 
-    if (mysql_query(db->conn, query) != 0)
+    if (mysql_query(db->conn, query))
     {
-        fprintf(stderr, "Query failed: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    // Build JSON
+    char *json = malloc(16384);
+    strcpy(json, "{\"rooms\":[");
+
+    MYSQL_ROW row;
+    int first = 1;
+    while ((row = mysql_fetch_row(result)))
+    {
+        if (!first)
+            strcat(json, ",");
+        first = 0;
+
+        char room_entry[512];
+        // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
+        // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
+        // row[7]=time_limit_minutes, row[8]=created_at
+        snprintf(room_entry, sizeof(room_entry),
+                 "{\"room_id\":\"%s\",\"room_name\":\"%s\",\"creator\":\"%s\","
+                 "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
+                 "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"}",
+                 row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
+        strcat(json, room_entry);
+    }
+
+    strcat(json, "]}");
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return json;
+}
+int db_get_room_status(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query),
+             "SELECT status FROM rooms WHERE room_id='%s'", room_id);
+
+    if (mysql_query(db->conn, query))
+    {
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
     MYSQL_RES *result = mysql_store_result(db->conn);
-    if (result == NULL)
+    if (!result)
     {
-        fprintf(stderr, "mysql_store_result() failed: %s\n", mysql_error(db->conn));
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
-    // Build JSON string
-    size_t json_capacity = 4096;
-    size_t json_len = 0;
-    char *json = malloc(json_capacity);
-    if (!json)
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int status = -1;
+
+    if (row)
     {
-        mysql_free_result(result);
-        pthread_mutex_unlock(&db->mutex);
-        return -1;
+        if (strcmp(row[0], "NOT_STARTED") == 0)
+            status = 0;
+        else if (strcmp(row[0], "IN_PROGRESS") == 0)
+            status = 1;
+        else if (strcmp(row[0], "FINISHED") == 0)
+            status = 2;
     }
-
-    // Start JSON
-    json_len += snprintf(json + json_len, json_capacity - json_len, "{\"rooms\":[");
-
-    MYSQL_ROW row;
-    int first = 1;
-
-    // Fetch each row and append to JSON
-    while ((row = mysql_fetch_row(result)) != NULL)
-    {
-        // Ensure enough capacity
-        if (json_capacity - json_len < 512)
-        {
-            json_capacity *= 2;
-            char *new_json = realloc(json, json_capacity);
-            if (!new_json)
-            {
-                free(json);
-                mysql_free_result(result);
-                pthread_mutex_unlock(&db->mutex);
-                return -1;
-            }
-            json = new_json;
-        }
-
-        if (!first) // Add comma between objects
-        {
-            json_len += snprintf(json + json_len, json_capacity - json_len, ",");
-        }
-        first = 0;
-
-        // Add room object
-        // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
-        // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
-        // row[7]=time_limit_minutes, row[8]=created_at
-        json_len += snprintf(json + json_len, json_capacity - json_len,
-                             "{\"room_id\":\"%s\",\"room_name\":\"%s\",\"creator_id\":\"%s\",\"status\":\"%s\","
-                             "\"participant_count\":%s,\"max_participants\":%s,\"duration_minutes\":%s,\"created_at\":\"%s\"}",
-                             row[0], row[1], row[2], row[3], row[4], row[5], row[7], row[8]);
-    }
-
-    // Close JSON
-    json_len += snprintf(json + json_len, json_capacity - json_len, "]}");
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
 
-    *json_out = json;
-    return 0;
+    return status;
 }
