@@ -1,6 +1,6 @@
 #include "server.h"
 #include "auth/auth.h"
-// #include "room/room.h"
+#include "room/room.h"
 // #include "exam/exam.h"
 // #include "practice/practice.h"
 #include "logger/logger.h"
@@ -32,7 +32,7 @@ int server_init(Server *server, int port)
     }
     log_event(LOG_INFO, NULL, "SERVER", "Starting server initialization");
 
-    // initialize database
+    // Initialize database (allocate memory for Database struct)
     server->db = malloc(sizeof(Database));
     if (!server->db)
     {
@@ -51,6 +51,8 @@ int server_init(Server *server, int port)
     {
         fprintf(stderr, "Failed to initialize database\n");
         log_event(LOG_ERROR, NULL, "SERVER", "Database initialization failed");
+        free(server->db);
+        server->db = NULL;
         return -1;
     }
     printf("Database connected successfully\n");
@@ -191,7 +193,7 @@ void *handle_client(void *arg)
         }
 
         // check if data message
-        // CODE DATA length\n<data>
+        // CODE DATA length\n
         if (strstr(buffer, " DATA "))
         { // -> buffer = " DATA length\n"
             // extract length and receive full data
@@ -267,6 +269,14 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_LOGOUT) == 0)
         {
             handle_logout(g_server, client);
+        }
+        else if (strcmp(msg.command, MSG_LIST_ROOMS) == 0)
+        {
+            handle_list_rooms(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_CREATE_ROOM) == 0)
+        {
+            handle_create_room(g_server, client, &msg);
         }
         else if (strcmp(msg.command, MSG_PING) == 0)
         {

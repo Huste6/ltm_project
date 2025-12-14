@@ -4,7 +4,8 @@
 #include <mysql/mysql.h>
 #include <pthread.h>
 
-typedef struct {
+typedef struct
+{
     MYSQL *conn;
     pthread_mutex_t mutex;
 } Database;
@@ -31,5 +32,10 @@ int db_cleanup_expired_sessions(Database *db, int timeout_minutes);
 
 // Logging
 void db_log_activity(Database *db, const char *level, const char *username, const char *action, const char *details);
+
+// Room operations
+int db_create_room(Database *db, const char *room_id, const char *room_name, const char *creator, int num_questions, int time_limit);
+char *db_list_rooms(Database *db, const char *status_filter);
+int db_get_room_status(Database *db, const char *room_id);
 
 #endif // DATABASE_H

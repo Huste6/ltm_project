@@ -137,7 +137,7 @@ void handle_login(Server *server, ClientSession *client, Message *msg) {
     client->state = STATE_AUTHENTICATED;
     // clientSession lưu session_id, username, state
     
-    // Send response "CODE_LOGIN_OK session_id"
+    // Send response
     send_error_or_response(client->socket_fd, CODE_LOGIN_OK, session_id);
     db_log_activity(server->db, "INFO", username, "LOGIN", "Successful login");
     
