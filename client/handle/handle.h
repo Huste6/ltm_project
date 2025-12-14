@@ -48,4 +48,26 @@ void handle_logout(Client *client);
  */
 void handle_list_rooms(Client *client);
 
+/**
+ * @brief Handle create room
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Get room details from user
+ * 2. Send CREATE_ROOM command
+ * 3. Receive and display response
+ */
+void handle_create_room(Client *client);
+
+/**
+ * @brief Handle join room
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Get room ID from user
+ * 2. Send JOIN_ROOM command
+ * 3. Receive and display response
+ */
+void handle_join_room(Client *client);
+
 #endif // HANDLE_H

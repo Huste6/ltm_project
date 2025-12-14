@@ -278,6 +278,10 @@ void *handle_client(void *arg)
         {
             handle_create_room(g_server, client, &msg);
         }
+        else if (strcmp(msg.command, MSG_JOIN_ROOM) == 0)
+        {
+            handle_join_room(g_server, client, &msg);
+        }
         else if (strcmp(msg.command, MSG_PING) == 0)
         {
             send_error_or_response(client->socket_fd, CODE_PONG, "PONG");

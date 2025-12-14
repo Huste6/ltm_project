@@ -289,3 +289,86 @@ void handle_create_room(Client *client)
         ui_show_error(error);
     }
 }
+
+/**
+ * @brief Handle join room
+ */
+void handle_join_room(Client *client)
+{
+    char room_id[64];
+
+    printf("\n=== JOIN ROOM ===\n");
+    ui_get_input("Room ID: ", room_id, sizeof(room_id));
+
+    if (strlen(room_id) == 0)
+    {
+        ui_show_error("Room ID cannot be empty");
+        return;
+    }
+
+    // Send command
+    const char *params[] = {room_id};
+    if (client_send_command(client, "JOIN_ROOM", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_ROOM_JOIN_OK)
+    {
+        strncpy(client->current_room, room_id, sizeof(client->current_room) - 1);
+        client->state = CLIENT_IN_ROOM;
+
+        char msg[256];
+        snprintf(msg, sizeof(msg), "Successfully joined room: %s", room_id);
+        ui_show_success(msg);
+        ui_show_info("Waiting for the creator to start the exam...");
+    }
+    else if (resp.code == CODE_ROOM_NOT_FOUND)
+    {
+        char error[512];
+        snprintf(error, sizeof(error),
+                 "❌ Room not found!\n"
+                 "   Room ID '%s' does not exist.\n"
+                 "   Please check the room ID and try again,\n"
+                 "   or use 'List Rooms' to browse available rooms.", 
+                 room_id);
+        ui_show_error(error);
+    }
+    else if (resp.code == CODE_ROOM_ALREADY_STARTED)
+    {
+        char error[512];
+        snprintf(error, sizeof(error),
+                 "❌ Room already started!\n"
+                 "   The exam in room '%s' has already begun.\n"
+                 "   You cannot join after the exam starts.\n"
+                 "   Please try another room or create a new one.",
+                 room_id);
+        ui_show_error(error);
+    }
+    else if (resp.code == CODE_ROOM_FINISHED)
+    {
+        char error[512];
+        snprintf(error, sizeof(error),
+                 "❌ Room exam finished!\n"
+                 "   The exam in room '%s' has already ended.\n"
+                 "   You cannot join a finished exam.\n"
+                 "   Please try another room or create a new one.",
+                 room_id);
+        ui_show_error(error);
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}

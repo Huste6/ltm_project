@@ -374,6 +374,21 @@ char *db_list_rooms(Database *db, const char *status_filter)
 
     return json;
 }
+
+int db_join_room(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "INSERT IGNORE INTO participants (room_id, username) VALUES ('%s', '%s')",
+             room_id, username);
+
+    int result = mysql_query(db->conn, query);
+
+    pthread_mutex_unlock(&db->mutex);
+    return result == 0 ? 0 : -1;
+}
 int db_get_room_status(Database *db, const char *room_id)
 {
     pthread_mutex_lock(&db->mutex);
@@ -412,4 +427,33 @@ int db_get_room_status(Database *db, const char *room_id)
     pthread_mutex_unlock(&db->mutex);
 
     return status;
+}
+int db_get_room_participant_count(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM participants WHERE room_id='%s'", room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int count = row ? atoi(row[0]) : 0;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return count;
 }

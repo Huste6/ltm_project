@@ -57,9 +57,12 @@ int main()
                 handle_create_room(&client);
                 break;
             case 2:
-                handle_list_rooms(&client);
+                handle_join_room(&client);
                 break;
             case 3:
+                handle_list_rooms(&client);
+                break;
+            case 4:
                 handle_logout(&client);
                 break;
             case 0:

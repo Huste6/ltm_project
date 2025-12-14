@@ -157,6 +157,82 @@ void handle_list_rooms(Server *server, ClientSession *client, Message *msg)
  */
 void handle_join_room(Server *server, ClientSession *client, Message *msg)
 {
+    // Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_LOGGED, "Not authenticated");
+        return;
+    }
+
+    // Validate params
+    if (msg->param_count < 1)
+    {
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
+                               "Usage: JOIN_ROOM room_id");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+
+    // Check room exists
+    int status = db_get_room_status(server->db, room_id);
+    if (status < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "JOIN_ROOM", "Room not found");
+        return;
+    }
+
+    // Check room not started (status: 0=NOT_STARTED, 1=IN_PROGRESS, 2=FINISHED)
+    if (status == 1)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_ALREADY_STARTED, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "JOIN_ROOM", "Room already started");
+        return;
+    }
+
+    if (status == 2)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "JOIN_ROOM", "Room finished");
+        return;
+    }
+
+    // Check room not full
+    int participant_count = db_get_room_participant_count(server->db, room_id);
+    if (participant_count >= 50)
+    { // MAX_PARTICIPANTS
+        send_error_or_response(client->socket_fd, CODE_ROOM_FULL, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "JOIN_ROOM", "Room full");
+        return;
+    }
+
+    // Join room
+    if (db_join_room(server->db, room_id, client->username) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to join room");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "JOIN_ROOM", "Database error");
+        return;
+    }
+
+    // Update client session
+    strcpy(client->current_room, room_id);
+    client->state = STATE_IN_ROOM;
+
+    // Send success response
+    send_error_or_response(client->socket_fd, CODE_ROOM_JOIN_OK, room_id);
+
+    db_log_activity(server->db, "INFO", client->username,
+                    "JOIN_ROOM", room_id);
+
+    printf("[JOIN_ROOM] User '%s' joined room '%s'\n",
+           client->username, room_id);
 }
 
 /**

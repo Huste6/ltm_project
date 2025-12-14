@@ -8,38 +8,38 @@ typedef struct ClientSession ClientSession;
 typedef struct Server Server;
 
 /**
- * @brief Xử lý tạo phòng thi mới
- * @param server Pointer tới Server instance
- * @param client Pointer tới ClientSession
- * @param msg Message đã parse (CREATE_ROOM name|num_questions|time_limit)
- *
+ * @brief Create a new room
+ * @param server Pointer to Server instance
+ * @param client Pointer to ClientSession
+ * @param msg Message parsed (CREATE_ROOM room_name num_questions time_limit)
  * Flow:
  * 1. Check authentication
- * 2. Validate params (num_questions: 5-50, time: 5-120)
- * 3. Generate unique room_id (timestamp-based)
- * 4. Create room trong DB (với random questions)
- * 5. Creator tự động join
- * 6. Update client state
- * 7. Response: 120 ROOM_CREATED <room_id>
+ * 2. Validate parameters
+ * 3. Create room in database
+ * 4. Update client state
+ * 5. Response: 120 ROOM_CREATED <room_id>
  */
 void handle_create_room(Server *server, ClientSession *client, Message *msg);
 
 /**
- * @brief Xử lý xem danh sách phòng thi
- * @param server Pointer tới Server instance
- * @param client Pointer tới ClientSession
- * @param msg Message đã parse (LIST_ROOMS [filter])
- *
+ * @brief Handle LIST_ROOMS command
+ * @param server Pointer to Server instance
+ * @param client Pointer to ClientSession
+ * @param msg Message parsed (LIST_ROOMS [filter])
+ * Flow:
+ * 1. Check authentication
+ * 2. Validate filter parameter
+ * 3. Query database for room list
  * Filter options: ALL, NOT_STARTED, IN_PROGRESS, FINISHED
  * Response: 121 DATA <length>\n<JSON>
  */
 void handle_list_rooms(Server *server, ClientSession *client, Message *msg);
 
 /**
- * @brief Xử lý tham gia phòng thi
- * @param server Pointer tới Server instance
- * @param client Pointer tới ClientSession
- * @param msg Message đã parse (JOIN_ROOM room_id)
+ * @brief Handle joining a room
+ * @param server Pointer to Server instance
+ * @param client Pointer to ClientSession
+ * @param msg Message parsed (JOIN_ROOM room_id)
  *
  * Flow:
  * 1. Check authentication
@@ -53,10 +53,10 @@ void handle_list_rooms(Server *server, ClientSession *client, Message *msg);
 void handle_join_room(Server *server, ClientSession *client, Message *msg);
 
 /**
- * @brief Xử lý rời phòng thi
- * @param server Pointer tới Server instance
- * @param client Pointer tới ClientSession
- * @param msg Message đã parse (LEAVE_ROOM room_id)
+ * @brief Handle leaving a room
+ * @param server Pointer to Server instance
+ * @param client Pointer to ClientSession
+ * @param msg Message parsed (LEAVE_ROOM room_id)
  *
  * Flow:
  * 1. Check user in room

@@ -36,6 +36,7 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
 // Room operations
 int db_create_room(Database *db, const char *room_id, const char *room_name, const char *creator, int num_questions, int time_limit);
 char *db_list_rooms(Database *db, const char *status_filter);
+int db_join_room(Database *db, const char *room_id, const char *username);
 int db_get_room_status(Database *db, const char *room_id);
-
+int db_get_room_participant_count(Database *db, const char *room_id);
 #endif // DATABASE_H
