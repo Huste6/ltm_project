@@ -245,13 +245,9 @@ void db_log_activity(Database *db, const char *level, const char *username, cons
 }
 
 // ============================= Room operations ===============================
-int db_create_room(Database *db, const char *room_id, const char *room_name,
-                   const char *creator, int num_questions, int time_limit)
+int db_create_room(Database *db, const char *room_id, const char *room_name, const char *creator, int num_questions, int time_limit)
 {
     pthread_mutex_lock(&db->mutex);
-
-    // Start transaction
-    mysql_query(db->conn, "START TRANSACTION");
 
     // Insert room (max_participants will use default value from schema)
     char query1[512];
@@ -262,41 +258,21 @@ int db_create_room(Database *db, const char *room_id, const char *room_name,
 
     if (mysql_query(db->conn, query1))
     {
-        mysql_query(db->conn, "ROLLBACK");
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
-    // Random select questions
+    // Creator auto joins, add user to participants table
     char query2[512];
     snprintf(query2, sizeof(query2),
-             "INSERT INTO room_questions (room_id, question_id, question_order) "
-             "SELECT '%s', id, @rownum := @rownum + 1 FROM questions, "
-             "(SELECT @rownum := 0) r ORDER BY RAND() LIMIT %d",
-             room_id, num_questions);
-
-    if (mysql_query(db->conn, query2))
-    {
-        mysql_query(db->conn, "ROLLBACK");
-        pthread_mutex_unlock(&db->mutex);
-        return -1;
-    }
-
-    // Creator auto joins
-    char query3[512];
-    snprintf(query3, sizeof(query3),
              "INSERT INTO participants (room_id, username) VALUES ('%s', '%s')",
              room_id, creator);
 
-    if (mysql_query(db->conn, query3))
+    if (mysql_query(db->conn, query2))
     {
-        mysql_query(db->conn, "ROLLBACK");
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
-
-    // Commit transaction
-    mysql_query(db->conn, "COMMIT");
 
     pthread_mutex_unlock(&db->mutex);
     return 0;
@@ -311,9 +287,9 @@ char *db_list_rooms(Database *db, const char *status_filter)
     {
         snprintf(query, sizeof(query),
                  "SELECT r.room_id, r.room_name, r.creator, r.status, "
-                 "COALESCE(COUNT(p.username), 0) as participant_count, "
+                 "COALESCE(COUNT(p.username), 0) as participant_count, " // Number of participants in the room, if none then 0
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
+                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id " // include all rooms even those with 0 participants
                  "GROUP BY r.room_id ORDER BY r.created_at DESC");
     }
     else
@@ -323,17 +299,18 @@ char *db_list_rooms(Database *db, const char *status_filter)
                  "COALESCE(COUNT(p.username), 0) as participant_count, "
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
                  "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
-                 "WHERE r.status='%s' "
+                 "WHERE r.status='%s' " // Filter by status
                  "GROUP BY r.room_id ORDER BY r.created_at DESC",
                  status_filter);
     }
 
-    if (mysql_query(db->conn, query))
+    if (mysql_query(db->conn, query)) // Execute query, if error(mysql_query return non-zero), return NULL
     {
         pthread_mutex_unlock(&db->mutex);
         return NULL;
     }
 
+    // Retrieve results, mysql_store_result fetches the result set from the last query
     MYSQL_RES *result = mysql_store_result(db->conn);
     if (!result)
     {
@@ -345,7 +322,7 @@ char *db_list_rooms(Database *db, const char *status_filter)
     char *json = malloc(16384);
     strcpy(json, "{\n  \"rooms\": [\n");
 
-    MYSQL_ROW row;
+    MYSQL_ROW row; // Fetch each row from the result set
     int first = 1;
     while ((row = mysql_fetch_row(result)))
     {
@@ -353,7 +330,7 @@ char *db_list_rooms(Database *db, const char *status_filter)
             strcat(json, ",\n");
         first = 0;
 
-        char room_entry[512];
+        char room_entry[512]; // Temporary buffer for each room entry
         // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
         // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
         // row[7]=time_limit_minutes, row[8]=created_at
@@ -362,33 +339,47 @@ char *db_list_rooms(Database *db, const char *status_filter)
                  "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
                  "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"}",
                  row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
-        strcat(json, "    "); // Indent 4 spaces
-        strcat(json, room_entry);
+        strcat(json, "    ");     // Indent 4 spaces
+        strcat(json, room_entry); // Append room entry to JSON
         strcat(json, "\n");
     }
 
     strcat(json, "\n  ]\n}");
 
-    mysql_free_result(result);
+    mysql_free_result(result); // Free the result set to avoid memory leaks
     pthread_mutex_unlock(&db->mutex);
 
     return json;
 }
 
+/**
+ * @brief Add user to room participants
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @param username Username to add
+ * @return 0 on success, -1 on failure
+ */
 int db_join_room(Database *db, const char *room_id, const char *username)
 {
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
     snprintf(query, sizeof(query),
-             "INSERT IGNORE INTO participants (room_id, username) VALUES ('%s', '%s')",
-             room_id, username);
+             "INSERT IGNORE INTO participants (room_id, username) VALUES ('%s', '%s')", room_id, username);
+    // Use INSERT IGNORE to avoid duplicate entries
 
     int result = mysql_query(db->conn, query);
 
     pthread_mutex_unlock(&db->mutex);
-    return result == 0 ? 0 : -1;
+    return result == 0 ? 0 : -1; // Return 0 on success, -1 on failure
 }
+
+/**
+ * @brief Get room status
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return Room status as integer (0=NOT_STARTED, 1=IN_PROGRESS, 2=FINISHED), -1 on error
+ */
 int db_get_room_status(Database *db, const char *room_id)
 {
     pthread_mutex_lock(&db->mutex);
@@ -428,6 +419,13 @@ int db_get_room_status(Database *db, const char *room_id)
 
     return status;
 }
+
+/**
+ * @brief Get number of participants in a room
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return Number of participants, -1 on error
+ */
 int db_get_room_participant_count(Database *db, const char *room_id)
 {
     pthread_mutex_lock(&db->mutex);
@@ -450,6 +448,8 @@ int db_get_room_participant_count(Database *db, const char *room_id)
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
+
+    // If row is NULL, return 0 participants
     int count = row ? atoi(row[0]) : 0;
 
     mysql_free_result(result);

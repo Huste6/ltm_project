@@ -5,6 +5,8 @@
 #include <string.h>
 #include <time.h>
 
+#define MAX_PARTICIPANTS 50
+
 /**
  * @brief Handle CREATE_ROOM command
  */
@@ -20,8 +22,7 @@ void handle_create_room(Server *server, ClientSession *client, Message *msg)
     // Validate params: must have exactly 3 params
     if (msg->param_count < 3)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "Usage: CREATE_ROOM <room_name> <num_questions> <time_limit_minutes>");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "Usage: CREATE_ROOM <room_name> <num_questions> <time_limit_minutes>");
         return;
     }
 
@@ -30,48 +31,41 @@ void handle_create_room(Server *server, ClientSession *client, Message *msg)
     const char *time_limit_str = msg->params[2];
 
     // Check for empty params
-    if (strlen(room_name) == 0 || strlen(num_questions_str) == 0 ||
-        strlen(time_limit_str) == 0)
+    if (strlen(room_name) == 0 || strlen(num_questions_str) == 0 || strlen(time_limit_str) == 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "All parameters must be non-empty");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "All parameters must be non-empty");
         return;
     }
 
-    // Parse integer params
+    // Parse integer params to validate
     int num_questions = atoi(num_questions_str);
-    int time_limit = atoi(time_limit_str); // Validate num_questions: must be integer > 0
+    int time_limit = atoi(time_limit_str);
+
+    // Validate num_questions: must be integer > 0
     if (num_questions <= 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "num_questions must be a positive integer");
-        db_log_activity(server->db, "WARNING", client->username,
-                        "CREATE_ROOM", "Invalid num_questions: must be > 0");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "num_questions must be a positive integer");
+        db_log_activity(server->db, "WARNING", client->username, "CREATE_ROOM", "Invalid num_questions: must be > 0");
         return;
     }
 
     // Validate time_limit: must be integer > 0
     if (time_limit <= 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "time_limit_minutes must be a positive integer");
-        db_log_activity(server->db, "WARNING", client->username,
-                        "CREATE_ROOM", "Invalid time_limit: must be > 0");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "time_limit_minutes must be a positive integer");
+        db_log_activity(server->db, "WARNING", client->username, "CREATE_ROOM", "Invalid time_limit: must be > 0");
         return;
     }
 
     // Generate unique room ID
     char room_id[MAX_ROOM_ID_LEN];
-    snprintf(room_id, sizeof(room_id), "room_%ld", time(NULL));
+    snprintf(room_id, sizeof(room_id), "%ld", time(NULL)); // Use timestamp as room ID
 
     // Create room in database (stored procedure handles question selection)
-    if (db_create_room(server->db, room_id, room_name, client->username,
-                       num_questions, time_limit) < 0)
+    if (db_create_room(server->db, room_id, room_name, client->username, num_questions, time_limit) < 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to create room");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "CREATE_ROOM", "Database error");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to create room");
+        db_log_activity(server->db, "ERROR", client->username, "CREATE_ROOM", "Database error");
         return;
     }
 
@@ -84,12 +78,10 @@ void handle_create_room(Server *server, ClientSession *client, Message *msg)
 
     // Log activity
     char details[256];
-    snprintf(details, sizeof(details), "Room '%s' (%s): %d questions, %d min",
-             room_name, room_id, num_questions, time_limit);
+    snprintf(details, sizeof(details), "Room '%s' (%s): %d questions, %d min", room_name, room_id, num_questions, time_limit);
     db_log_activity(server->db, "INFO", client->username, "CREATE_ROOM", details);
 
-    printf("[CREATE_ROOM] User '%s' created room '%s' (%s)\n",
-           client->username, room_name, room_id);
+    printf("[CREATE_ROOM] User '%s' created room '%s' (%s)\n", client->username, room_name, room_id);
 }
 
 /**
@@ -131,25 +123,21 @@ void handle_list_rooms(Server *server, ClientSession *client, Message *msg)
 
     // Send response with length prefixing
     char buffer[MAX_MESSAGE_LEN];
-    int len = create_data_message(CODE_ROOMS_DATA, json_data, strlen(json_data),
-                                  buffer, sizeof(buffer));
+    int len = create_data_message(CODE_ROOMS_DATA, json_data, strlen(json_data), buffer, sizeof(buffer));
 
     if (len > 0)
     {
         send_full(client->socket_fd, buffer, len);
-        db_log_activity(server->db, "INFO", client->username,
-                        "LIST_ROOMS", filter);
+        db_log_activity(server->db, "INFO", client->username, "LIST_ROOMS", filter);
     }
     else
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Response too large");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Response too large");
     }
 
     free(json_data);
 
-    printf("[LIST_ROOMS] User '%s' requested room list (filter: %s)\n",
-           client->username, filter);
+    printf("[LIST_ROOMS] User '%s' requested room list (filter: %s)\n", client->username, filter);
 }
 
 /**
@@ -167,8 +155,7 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
     // Validate params
     if (msg->param_count < 1)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "Usage: JOIN_ROOM room_id");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "Usage: JOIN_ROOM room_id");
         return;
     }
 
@@ -179,8 +166,7 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
     if (status < 0)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "JOIN_ROOM", "Room not found");
+        db_log_activity(server->db, "WARNING", client->username, "JOIN_ROOM", "Room not found");
         return;
     }
 
@@ -188,36 +174,31 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
     if (status == 1)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_ALREADY_STARTED, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "JOIN_ROOM", "Room already started");
+        db_log_activity(server->db, "WARNING", client->username, "JOIN_ROOM", "Room already started");
         return;
     }
 
     if (status == 2)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "JOIN_ROOM", "Room finished");
+        db_log_activity(server->db, "WARNING", client->username, "JOIN_ROOM", "Room finished");
         return;
     }
 
     // Check room not full
     int participant_count = db_get_room_participant_count(server->db, room_id);
-    if (participant_count >= 50)
-    { // MAX_PARTICIPANTS
+    if (participant_count >= MAX_PARTICIPANTS)
+    {
         send_error_or_response(client->socket_fd, CODE_ROOM_FULL, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "JOIN_ROOM", "Room full");
+        db_log_activity(server->db, "WARNING", client->username, "JOIN_ROOM", "Room full");
         return;
     }
 
     // Join room
     if (db_join_room(server->db, room_id, client->username) < 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to join room");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "JOIN_ROOM", "Database error");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to join room");
+        db_log_activity(server->db, "ERROR", client->username, "JOIN_ROOM", "Database error");
         return;
     }
 
@@ -228,11 +209,9 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
     // Send success response
     send_error_or_response(client->socket_fd, CODE_ROOM_JOIN_OK, room_id);
 
-    db_log_activity(server->db, "INFO", client->username,
-                    "JOIN_ROOM", room_id);
+    db_log_activity(server->db, "INFO", client->username, "JOIN_ROOM", room_id);
 
-    printf("[JOIN_ROOM] User '%s' joined room '%s'\n",
-           client->username, room_id);
+    printf("[JOIN_ROOM] User '%s' joined room '%s'\n", client->username, room_id);
 }
 
 /**

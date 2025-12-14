@@ -192,7 +192,7 @@ void *handle_client(void *arg)
             break;
         }
 
-        // check if data message
+        // ===================================== Data message =====================================
         // CODE DATA length\n
         if (strstr(buffer, " DATA "))
         { // -> buffer = " DATA length\n"
@@ -246,7 +246,8 @@ void *handle_client(void *arg)
             continue;
         }
 
-        // parse control message
+        // ==================================== Control message =====================================
+        // COMMAND param1|param2\n
         client->last_activity = time(NULL);
         Message msg;
         if (parse_message(buffer, &msg) < 0)
