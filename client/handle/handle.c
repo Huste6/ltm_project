@@ -30,7 +30,7 @@ void handle_register(Client *client)
 
     // send REGISTER command
     const char *params[] = {username, password};
-    if (client_send_command(client, "REGISTER", params, 2) < 0)
+    if (client_create_send_command(client, "REGISTER", params, 2) < 0)
     {
         ui_show_error("Failed to send REGISTER command.");
         return;
@@ -69,7 +69,7 @@ void handle_login(Client *client)
 
     // send LOGIN command
     const char *params[] = {username, password};
-    if (client_send_command(client, "LOGIN", params, 2) < 0)
+    if (client_create_send_command(client, "LOGIN", params, 2) < 0)
     {
         ui_show_error("Failed to send LOGIN command.");
         return;
@@ -111,7 +111,7 @@ void handle_logout(Client *client)
     printf("\n=== LOGOUT ===\n");
 
     // Send command
-    if (client_send_command(client, "LOGOUT", NULL, 0) < 0)
+    if (client_create_send_command(client, "LOGOUT", NULL, 0) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -148,6 +148,9 @@ void handle_logout(Client *client)
  * 2. Send LIST_ROOMS command: LIST_ROOMS <filter>
  * 3. Receive and display room list (JSON): CODE_ROOMS_DATA <length>\n<JSON>
  */
+// Filter: NOT_STARTED, IN_PROGRESS, FINISHED, ALL
+// Command: LIST_ROOMS [filter]\n
+// Response: 140 DATA <length>\n<data>
 void handle_list_rooms(Client *client)
 {
     char filter[32];
@@ -194,8 +197,7 @@ void handle_list_rooms(Client *client)
 
     // only send filter if not ALL
     int param_count = (strcmp(filter, "ALL") == 0) ? 0 : 1;
-
-    if (client_send_command(client, "LIST_ROOMS", params, param_count) < 0)
+    if (client_create_send_command(client, "LIST_ROOMS", params, param_count) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -258,7 +260,7 @@ void handle_create_room(Client *client)
 
     // ========================== Send command ============================================
     const char *params[] = {room_name, num_questions_str, time_minutes_str};
-    if (client_send_command(client, "CREATE_ROOM", params, 3) < 0)
+    if (client_create_send_command(client, "CREATE_ROOM", params, 3) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -310,7 +312,7 @@ void handle_join_room(Client *client)
 
     // ========================== Send command ============================================
     const char *params[] = {room_id};
-    if (client_send_command(client, "JOIN_ROOM", params, 1) < 0)
+    if (client_create_send_command(client, "JOIN_ROOM", params, 1) < 0)
     {
         ui_show_error("Failed to send command");
         return;

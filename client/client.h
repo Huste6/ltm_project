@@ -52,7 +52,7 @@ void client_disconnect(Client *client);
  * @param param_count Number of parameters
  * @return 0 on success, -1 on error
  */
-int client_send_command(Client *client, const char *command, const char **params, int param_count);
+int client_create_send_command(Client *client, const char *command, const char **params, int param_count);
 
 /**
  * @brief Receive response from server

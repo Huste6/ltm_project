@@ -64,8 +64,7 @@ void client_disconnect(Client *client)
  * @brief Send command to server
  * ví dụ: send_command("LOGIN", ["john", "pass123"], 2) -> "LOGIN john|pass123\n"
  */
-int client_send_command(Client *client, const char *command, const char **params, int param_count)
-{
+int client_create_send_command(Client *client, const char *command, const char **params, int param_count) {
     char buffer[BUFFER_SIZE];
     int len = create_control_message(command, params, param_count, buffer, sizeof(buffer));
     if (len <= 0)

@@ -142,37 +142,6 @@ int db_create_session(Database *db, const char *session_id, const char *username
     return result == 0 ? 0 : -1;
 }
 
-int db_verify_session(Database *db, const char *session_id, char *username_out)
-{
-    pthread_mutex_lock(&db->mutex);
-
-    char query[512];
-    snprintf(query, sizeof(query), "SELECT username FROM sessions WHERE session_id='%s' AND is_active = 1"
-                                   "AND TIMESTAMPDIFF(MINUTE, last_activity, NOW()) < 30",
-             session_id);
-
-    if (mysql_query(db->conn, query) != 0)
-    {
-        pthread_mutex_unlock(&db->mutex);
-        return -1;
-    }
-
-    MYSQL_RES *result = mysql_store_result(db->conn);
-    MYSQL_ROW row = mysql_fetch_row(result);
-    if (row)
-    {
-        strncpy(username_out, row[0], 255);
-        username_out[255] = '\0';
-        mysql_free_result(result);
-        pthread_mutex_unlock(&db->mutex);
-        return 1;
-    }
-
-    mysql_free_result(result);
-    pthread_mutex_unlock(&db->mutex);
-    return 0;
-}
-
 int db_destroy_session(Database *db, const char *session_id)
 {
     pthread_mutex_lock(&db->mutex);
@@ -205,18 +174,6 @@ int db_check_user_logged_in(Database *db, const char *username)
     pthread_mutex_unlock(&db->mutex);
 
     return logged_in;
-}
-
-int db_cleanup_expired_sessions(Database *db, int timeout_minutes)
-{
-    pthread_mutex_lock(&db->mutex);
-
-    char query[512];
-    snprintf(query, sizeof(query), "UPDATE sessions SET is_active = 0 WHERE TIMESTAMPDIFF(MINUTE, last_activity, NOW()) >= %d", timeout_minutes);
-    int result = mysql_query(db->conn, query);
-
-    pthread_mutex_unlock(&db->mutex);
-    return result == 0 ? 0 : -1;
 }
 
 // =============================== Logging =====================================
