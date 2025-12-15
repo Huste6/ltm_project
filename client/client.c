@@ -10,12 +10,14 @@
 /**
  * @brief Connect to server
  */
-int client_connect(Client *client, const char *host, int port) {
+int client_connect(Client *client, const char *host, int port)
+{
     memset(client, 0, sizeof(Client));
 
     // create socket
     client->socket_fd = socket(AF_INET, SOCK_STREAM, 0);
-    if(client->socket_fd < 0) {
+    if (client->socket_fd < 0)
+    {
         perror("Socket creation failed");
         return -1;
     }
@@ -26,14 +28,16 @@ int client_connect(Client *client, const char *host, int port) {
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port);
 
-    if(inet_pton(AF_INET, host, &server_addr.sin_addr) <= 0) {
+    if (inet_pton(AF_INET, host, &server_addr.sin_addr) <= 0)
+    {
         perror("Invalid address/ Address not supported");
         close(client->socket_fd);
         return -1;
     }
 
     // connect to server
-    if(connect(client->socket_fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
+    if (connect(client->socket_fd, (struct sockaddr *)&server_addr, sizeof(server_addr)) < 0)
+    {
         perror("Connection to server failed");
         close(client->socket_fd);
         return -1;
@@ -46,8 +50,10 @@ int client_connect(Client *client, const char *host, int port) {
 /**
  * @brief Disconnect from server
  */
-void client_disconnect(Client *client) {
-    if(client->socket_fd > 0) {
+void client_disconnect(Client *client)
+{
+    if (client->socket_fd > 0)
+    {
         close(client->socket_fd);
         client->socket_fd = -1;
     }
@@ -55,13 +61,14 @@ void client_disconnect(Client *client) {
 }
 
 /**
- * @brief Send command to server 
+ * @brief Send command to server
  * ví dụ: send_command("LOGIN", ["john", "pass123"], 2) -> "LOGIN john|pass123\n"
  */
 int client_create_send_command(Client *client, const char *command, const char **params, int param_count) {
     char buffer[BUFFER_SIZE];
     int len = create_control_message(command, params, param_count, buffer, sizeof(buffer));
-    if(len <= 0){
+    if (len <= 0)
+    {
         fprintf(stderr, "Failed to create command message\n");
         return -1;
     }
@@ -85,70 +92,81 @@ int client_create_send_command(Client *client, const char *command, const char *
  *  response->data = <data>
  *  response->data_length = <length>
  */
-int client_receive_response(Client *client, Response *response) {
+int client_receive_response(Client *client, Response *response)
+{
     char buffer[BUFFER_SIZE];
     memset(response, 0, sizeof(Response));
 
     // receive header line
     int bytes_received = recv_line(client->socket_fd, buffer, sizeof(buffer));
-    if(bytes_received <= 0) {
+    if (bytes_received <= 0)
+    {
         fprintf(stderr, "Connection lost\n");
         return -1;
     }
 
     // check if data message
-    if (strstr(buffer, " DATA ") != NULL) {
+    if (strstr(buffer, " DATA ") != NULL)
+    {
         // Parse header to get length
         char temp[256];
         strncpy(temp, buffer, sizeof(temp) - 1);
         char *nl = strchr(temp, '\n');
-        if (nl) *nl = '\0';
-        
+        if (nl)
+            *nl = '\0';
+
         // Extract code and length
         int code;
         size_t data_len;
         sscanf(temp, "%d DATA %zu", &code, &data_len);
-        
+
         response->code = code;
         response->data_length = data_len;
-        
+
         // Receive data
         response->data = malloc(data_len + 1);
-        if (!response->data) {
+        if (!response->data)
+        {
             fprintf(stderr, "Memory allocation failed\n");
             return -1;
         }
-        
+
         int received = recv_full(client->socket_fd, response->data, data_len);
-        if (received < 0) {
+        if (received < 0)
+        {
             free(response->data);
             return -1;
         }
-        
+
         response->data[data_len] = '\0';
         response->message[0] = '\0';
-        
-    } else {
+    }
+    else
+    {
         // Simple response: CODE MESSAGE\n
         char temp[256];
         strncpy(temp, buffer, sizeof(temp) - 1);
         char *nl = strchr(temp, '\n');
-        if (nl) *nl = '\0';
-        
+        if (nl)
+            *nl = '\0';
+
         // Parse code
         char *space = strchr(temp, ' ');
-        if (space) {
+        if (space)
+        {
             *space = '\0';
             response->code = atoi(temp);
             strncpy(response->message, space + 1, sizeof(response->message) - 1);
-        } else {
+        }
+        else
+        {
             response->code = atoi(temp);
             response->message[0] = '\0';
         }
-        
+
         response->data = NULL;
         response->data_length = 0;
     }
-    
+
     return 0;
 }

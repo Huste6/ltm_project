@@ -142,6 +142,11 @@ void handle_logout(Client *client)
 
 /**
  * @brief Handle list rooms
+ * @param client Client instance
+ * Flow:
+ * 1. Get filter parameter (ALL, NOT_STARTED, IN_PROGRESS, FINISHED)
+ * 2. Send LIST_ROOMS command: LIST_ROOMS <filter>
+ * 3. Receive and display room list (JSON): CODE_ROOMS_DATA <length>\n<JSON>
  */
 // Filter: NOT_STARTED, IN_PROGRESS, FINISHED, ALL
 // Command: LIST_ROOMS [filter]\n
@@ -159,9 +164,8 @@ void handle_list_rooms(Client *client)
     printf("3. FINISHED\n");
     printf("0. ALL (default)\n");
     printf("Choice (press Enter for ALL): ");
-    fflush(stdout);
 
-    // Read entire line
+    // Read entire line, including newline character, enter newline = filter ALL
     if (fgets(input_line, sizeof(input_line), stdin) != NULL)
     {
         // Try to parse as integer
@@ -169,10 +173,6 @@ void handle_list_rooms(Client *client)
         {
             choice = 0; // Default to ALL if not a number or empty
         }
-    }
-    else
-    {
-        choice = 0; // Default to ALL on EOF
     }
 
     switch (choice)
@@ -192,15 +192,18 @@ void handle_list_rooms(Client *client)
         break;
     }
 
-    // Send command
+    // ========================== Send command ============================================
     const char *params[] = {filter};
+
+    // only send filter if not ALL
     int param_count = (strcmp(filter, "ALL") == 0) ? 0 : 1;
     if (client_create_send_command(client, "LIST_ROOMS", params, param_count) < 0)
     {
         ui_show_error("Failed to send command");
         return;
     }
-    // Receive response
+
+    // ========================== Receive response ============================================
     Response resp;
     if (client_receive_response(client, &resp) < 0)
     {
@@ -215,7 +218,7 @@ void handle_list_rooms(Client *client)
         printf("Data received: %zu bytes\n\n", resp.data_length);
         printf("%s\n", resp.data);
 
-        free(resp.data);
+        free(resp.data); // free allocated data buffer to avoid memory leak
     }
     else
     {
@@ -227,21 +230,22 @@ void handle_list_rooms(Client *client)
 /**
  * @brief Handle create room
  */
+// command: CREATE_ROOM room_name|num_questions|time_limit\n
 void handle_create_room(Client *client)
 {
     char room_name[128];
-    int num_questions, time_minutes;
+    char num_questions_str[16];
+    char time_minutes_str[16];
 
     printf("\n=== CREATE ROOM ===\n");
     ui_get_input("Room name: ", room_name, sizeof(room_name));
+    ui_get_input("Number of questions (5-50): ", num_questions_str, sizeof(num_questions_str));
+    ui_get_input("Time limit (minutes, 5-120): ", time_minutes_str, sizeof(time_minutes_str));
 
-    printf("Number of questions (5-50): ");
-    scanf("%d", &num_questions);
-    printf("Time limit (minutes, 5-120): ");
-    scanf("%d", &time_minutes);
-    getchar();
+    // ========================== Validate parameters ============================================
+    int num_questions = atoi(num_questions_str);
+    int time_minutes = atoi(time_minutes_str);
 
-    // Validate parameters
     if (num_questions < 5 || num_questions > 50)
     {
         ui_show_error("Number of questions must be between 5 and 50");
@@ -254,19 +258,15 @@ void handle_create_room(Client *client)
         return;
     }
 
-    char q[16], t[16];
-    sprintf(q, "%d", num_questions);
-    sprintf(t, "%d", time_minutes);
-
-    // Send command
-    const char *params[] = {room_name, q, t};
+    // ========================== Send command ============================================
+    const char *params[] = {room_name, num_questions_str, time_minutes_str};
     if (client_create_send_command(client, "CREATE_ROOM", params, 3) < 0)
     {
         ui_show_error("Failed to send command");
         return;
     }
 
-    // Receive response
+    // ========================== Receive response ============================================
     Response resp;
     if (client_receive_response(client, &resp) < 0)
     {
@@ -276,7 +276,8 @@ void handle_create_room(Client *client)
 
     if (resp.code == CODE_ROOM_CREATED)
     {
-        strncpy(client->current_room, resp.message, sizeof(client->current_room) - 1);
+        // The server returns the room ID in resp.message and the client enters the room as creator
+        snprintf(client->current_room, sizeof(client->current_room), "%s", resp.message);
         client->state = CLIENT_IN_ROOM;
 
         char msg[256];
@@ -309,7 +310,7 @@ void handle_join_room(Client *client)
         return;
     }
 
-    // Send command
+    // ========================== Send command ============================================
     const char *params[] = {room_id};
     if (client_create_send_command(client, "JOIN_ROOM", params, 1) < 0)
     {
@@ -317,7 +318,7 @@ void handle_join_room(Client *client)
         return;
     }
 
-    // Receive response
+    // ========================== Receive response ============================================
     Response resp;
     if (client_receive_response(client, &resp) < 0)
     {
@@ -325,9 +326,12 @@ void handle_join_room(Client *client)
         return;
     }
 
+    // ========================== Handle response ============================================
+
+    // Successful join
     if (resp.code == CODE_ROOM_JOIN_OK)
     {
-        strncpy(client->current_room, room_id, sizeof(client->current_room) - 1);
+        snprintf(client->current_room, sizeof(client->current_room), "%s", room_id);
         client->state = CLIENT_IN_ROOM;
 
         char msg[256];
@@ -335,39 +339,31 @@ void handle_join_room(Client *client)
         ui_show_success(msg);
         ui_show_info("Waiting for the creator to start the exam...");
     }
+
+    // Room not found
     else if (resp.code == CODE_ROOM_NOT_FOUND)
     {
-        char error[512];
-        snprintf(error, sizeof(error),
-                 "❌ Room not found!\n"
-                 "   Room ID '%s' does not exist.\n"
-                 "   Please check the room ID and try again,\n"
-                 "   or use 'List Rooms' to browse available rooms.", 
-                 room_id);
+        char error[256];
+        snprintf(error, sizeof(error), "Room not found!\n");
         ui_show_error(error);
     }
+
+    // Room already started
     else if (resp.code == CODE_ROOM_ALREADY_STARTED)
     {
-        char error[512];
-        snprintf(error, sizeof(error),
-                 "❌ Room already started!\n"
-                 "   The exam in room '%s' has already begun.\n"
-                 "   You cannot join after the exam starts.\n"
-                 "   Please try another room or create a new one.",
-                 room_id);
+        char error[256];
+        snprintf(error, sizeof(error), "Room already started!\n");
         ui_show_error(error);
     }
+
+    // Room finished
     else if (resp.code == CODE_ROOM_FINISHED)
     {
-        char error[512];
-        snprintf(error, sizeof(error),
-                 "❌ Room exam finished!\n"
-                 "   The exam in room '%s' has already ended.\n"
-                 "   You cannot join a finished exam.\n"
-                 "   Please try another room or create a new one.",
-                 room_id);
+        char error[256];
+        snprintf(error, sizeof(error), "Room exam finished!\n");
         ui_show_error(error);
     }
+
     else
     {
         char error[256];

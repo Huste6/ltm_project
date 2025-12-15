@@ -96,7 +96,7 @@ void ui_wait_enter()
 void ui_get_input(const char *prompt, char *buffer, size_t size)
 {
     printf("%s", prompt);
-    fgets(buffer, size, stdin);
+    fgets(buffer, size, stdin); // buffers include newline
 
     // remove newline
     size_t len = strlen(buffer);

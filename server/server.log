@@ -43,3 +43,22 @@
 [2025-12-13 18:25:48] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:53578
 [2025-12-13 18:25:53] [INFO] [quan] DISCONNECT: Client socket 7 disconnected
 [2025-12-13 18:25:53] [INFO] [quan] DISCONNECT: Session destroyed
+[2025-12-15 00:54:12] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-15 00:54:12] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-15 00:54:12] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-15 00:54:12] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-15 00:54:18] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:37944
+[2025-12-15 00:55:00] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-15 00:55:00] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-15 00:55:00] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-15 00:55:00] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-15 00:55:04] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:48390
+[2025-12-15 00:55:28] [INFO] [sang2] DISCONNECT: Client socket 6 disconnected
+[2025-12-15 00:55:28] [INFO] [sang2] DISCONNECT: Session destroyed
+[2025-12-15 01:09:41] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-15 01:09:41] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-15 01:09:41] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-15 01:09:41] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-15 01:09:49] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:40600
+[2025-12-15 01:11:53] [INFO] [sang2] DISCONNECT: Client socket 6 disconnected
+[2025-12-15 01:11:53] [INFO] [sang2] DISCONNECT: Session destroyed
