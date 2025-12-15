@@ -371,3 +371,56 @@ void handle_join_room(Client *client)
         ui_show_error(error);
     }
 }
+
+/**
+ * @brief Handle view result
+ */
+void handle_view_result(Client *client)
+{
+    char room_id[64];
+
+    printf("\n=== VIEW RESULT ===\n");
+    ui_get_input("Room ID: ", room_id, sizeof(room_id));
+
+    if (strlen(room_id) == 0)
+    {
+        ui_show_error("Room ID cannot be empty");
+        return;
+    }
+
+    // send command = "VIEW_RESULT room_id\n"
+    const char *params[] = {room_id};
+    if (client_create_send_command(client, "VIEW_RESULT", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_RESULT_DATA && resp.data)
+    {
+        printf("\n=== EXAM RESULTS - LEADERBOARD ===\n");
+        printf("Room: %s\n", room_id);
+        printf("Data received: %zu bytes\n\n", resp.data_length);
+        
+        // Pretty print JSON using protocol function
+        printf("Leaderboard:\n");
+        printf("%s", resp.data);
+        printf("\n");
+
+        free(resp.data); 
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}

@@ -5,6 +5,7 @@
 #include "protocol/protocol.h"
 #include "database/database.h"
 #include "logger/logger.h"
+#include "exam/exam.h"
 
 #define MAX_CLIENTS 100
 #define SERVER_PORT 8888

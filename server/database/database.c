@@ -280,13 +280,8 @@ char *db_list_rooms(Database *db, const char *status_filter)
     strcpy(json, "{\n  \"rooms\": [\n");
 
     MYSQL_ROW row; // Fetch each row from the result set
-    int first = 1;
     while ((row = mysql_fetch_row(result)))
     {
-        if (!first)
-            strcat(json, ",\n");
-        first = 0;
-
         char room_entry[512]; // Temporary buffer for each room entry
         // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
         // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
@@ -294,7 +289,7 @@ char *db_list_rooms(Database *db, const char *status_filter)
         snprintf(room_entry, sizeof(room_entry),
                  "{\"room_id\":\"%s\",\"room_name\":\"%s\",\"creator\":\"%s\","
                  "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
-                 "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"}",
+                 "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"},",
                  row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
         strcat(json, "    ");     // Indent 4 spaces
         strcat(json, room_entry); // Append room entry to JSON
@@ -413,4 +408,56 @@ int db_get_room_participant_count(Database *db, const char *room_id)
     pthread_mutex_unlock(&db->mutex);
 
     return count;
+}
+
+/**
+ * @brief Get leaderboard for room
+ * @param db Database structure
+ * @param room_id Room ID
+ * @return JSON string with leaderboard (must be freed), NULL on error
+ */
+char* db_get_room_leaderboard(Database *db, const char *room_id) {
+    pthread_mutex_lock(&db->mutex);
+    
+    char query[1024];
+    snprintf(query, sizeof(query),
+            "SELECT username, score, total_questions, submit_time, time_taken_seconds "
+            "FROM exam_results WHERE room_id='%s' "
+            "ORDER BY score DESC, submit_time ASC", room_id);
+    
+    if (mysql_query(db->conn, query)) {
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+    
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result) {
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+    
+    // Build JSON
+    // json: {"leaderboard":[{"rank":1,"username":"user1","score":8,"total":10,"submit_time":"2024-10-01 12:00:00", "time_taken":120},...]}
+    char *json = malloc(16384);
+    strcpy(json, "{\n  \"leaderboard\":[\n");
+    
+    MYSQL_ROW row;
+    int rank = 1;
+    while ((row = mysql_fetch_row(result))) {        
+        char entry[512];
+        snprintf(entry, sizeof(entry),
+                "{\"rank\":%d,\"username\":\"%s\",\"score\":%s,"
+                "\"total\":%s,\"submit_time\":\"%s\",\"time_taken\":%s},",
+                rank++, row[0], row[1], row[2], row[3], row[4]);
+        strcat(json, "    ");        
+        strcat(json, entry);
+        strcat(json, "\n");
+    }
+    
+    strcat(json, "]}");
+    
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+    
+    return json;
 }

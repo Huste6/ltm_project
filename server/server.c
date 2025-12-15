@@ -231,6 +231,10 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_PING) == 0)
         {
             send_error_or_response(client->socket_fd, CODE_PONG, "PONG");
+        } 
+        else if (strcmp(msg.command, MSG_VIEW_RESULT) == 0)
+        {
+            handle_view_result(g_server, client, &msg);
         }
         else
         {

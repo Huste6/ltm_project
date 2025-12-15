@@ -51,6 +51,7 @@
 #define CODE_NOT_CREATOR 226                // Không phải người tạo
 #define CODE_NOT_IN_ROOM 227                // Không ở trong phòng
 #define CODE_ROOM_FULL 228                  // Phòng đầy
+#define CODE_ROOM_NOT_FINISHED 229          // Phòng chưa kết thúc
 
 // Submit Errors
 #define CODE_TIME_EXPIRED 230               // Hết giờ

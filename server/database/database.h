@@ -39,4 +39,8 @@ char *db_list_rooms(Database *db, const char *status_filter);
 int db_join_room(Database *db, const char *room_id, const char *username);
 int db_get_room_status(Database *db, const char *room_id);
 int db_get_room_participant_count(Database *db, const char *room_id);
+
+// Exam operations
+char* db_get_room_leaderboard(Database *db, const char *room_id);
+
 #endif // DATABASE_H

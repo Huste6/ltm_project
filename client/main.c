@@ -63,6 +63,9 @@ int main()
                 handle_list_rooms(&client);
                 break;
             case 4:
+                handle_view_result(&client);
+                break;
+            case 5:
                 handle_logout(&client);
                 break;
             case 0:
@@ -73,10 +76,30 @@ int main()
             }
             break;
         case CLIENT_IN_ROOM:
-            client.state = CLIENT_AUTHENTICATED;
-            break;
+            ui_print_menu_room();
+            scanf("%d", &choice);
+            getchar();
 
+            switch (choice)
+            {
+            case 1:
+                // handle_start_exam(&client);
+                ui_show_info("Start Exam feature not implemented yet.");
+                break;
+            case 2:
+                // handle_leave_room(&client);
+                ui_show_info("Leave Room feature not implemented yet.");
+                break;
+            case 0:
+                client.state = CLIENT_AUTHENTICATED;
+                break;
+            default:
+                ui_show_error("Invalid choice!");
+                break;
+            }
+            break;
         default:
+            ui_show_error("Unknown client state!");
             break;
         }
 

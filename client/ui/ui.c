@@ -43,7 +43,8 @@ void ui_print_menu_authenticated()
     printf("1. Create Room\n");
     printf("2. Join Room\n");
     printf("3. List Rooms\n");
-    printf("4. Logout\n");
+    printf("4. View Result\n");
+    printf("5. Logout\n");
     printf("0. Exit\n");
     printf("Choice: ");
 }
@@ -53,7 +54,11 @@ void ui_print_menu_authenticated()
  */
 void ui_print_menu_room()
 {
-    // implement room menu UI
+    printf("\n=== ROOM MENU ===\n");
+    printf("1. Start Exam (creator only)\n");
+    printf("2. Leave Room\n");
+    printf("0. Back\n");
+    printf("Choice: ");
 }
 
 /**
