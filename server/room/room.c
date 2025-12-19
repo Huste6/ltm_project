@@ -234,7 +234,7 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
     const char *room_id = msg->params[0];
 
     // Check user is in room
-    if (!db_is_in_room(&server->db, room_id, client->username))
+    if (!db_is_in_room(server->db, room_id, client->username))
     {
         send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
         db_log_activity(server->db, "WARNING", client->username,
@@ -243,7 +243,7 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
     }
 
     // Leave room
-    if (db_leave_room(&server->db, room_id, client->username) < 0)
+    if (db_leave_room(server->db, room_id, client->username) < 0)
     {
         send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
                                "Failed to leave room");
