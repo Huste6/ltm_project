@@ -67,7 +67,6 @@ void ui_print_menu_room()
     printf("\n=== ROOM MENU ===\n");
     printf("1. Start Exam (creator only)\n");
     printf("2. Leave Room\n");
-    printf("0. Back\n");
     printf("Choice: ");
 }
 
