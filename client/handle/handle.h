@@ -70,4 +70,25 @@ void handle_create_room(Client *client);
  */
 void handle_join_room(Client *client);
 
+/**
+ * @brief Handle leave room
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Send LEAVE_ROOM command
+ * 2. Update client state to AUTHENTICATED
+ */
+void handle_leave_room(Client *client);
+
+/**
+ * @brief Handle start exam (creator only)
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Send START_EXAM command
+ * 2. Wait for broadcast
+ * 3. Update state to IN_EXAM
+ */
+void handle_start_exam(Client *client);
+
 #endif // HANDLE_H

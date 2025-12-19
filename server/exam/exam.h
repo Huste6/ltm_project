@@ -1,0 +1,34 @@
+#ifndef EXAM_H
+#define EXAM_H
+
+#include "../protocol/protocol.h"
+#include "../database/database.h"
+
+typedef struct ClientSession ClientSession;
+typedef struct Server Server;
+
+/**
+ * @brief Xử lý bắt đầu bài thi (chỉ creator)
+ * @param server Pointer tới Server instance
+ * @param client Pointer tới ClientSession
+ * @param msg Message đã parse (START_EXAM room_id)
+ *
+ * Flow:
+ * 1. Check user là creator
+ * 2. Check room status = NOT_STARTED
+ * 3. Update room status = IN_PROGRESS
+ * 4. Set start_time
+ * 5. BROADCAST message 125 START_OK tới all participants
+ * 6. Update tất cả client sessions trong room
+ */
+void handle_start_exam(Server *server, ClientSession *client, Message *msg);
+
+/**
+ * @brief Broadcast message tới tất cả participants trong room
+ * @param server Server instance
+ * @param room_id Room ID
+ * @param message Message cần broadcast
+ */
+void broadcast_to_room(Server *server, const char *room_id, const char *message);
+
+#endif // EXAM_H

@@ -39,4 +39,10 @@ char *db_list_rooms(Database *db, const char *status_filter);
 int db_join_room(Database *db, const char *room_id, const char *username);
 int db_get_room_status(Database *db, const char *room_id);
 int db_get_room_participant_count(Database *db, const char *room_id);
+int db_leave_room(Database *db, const char *room_id, const char *username);
+int db_start_room(Database *db, const char *room_id);
+int db_finish_room(Database *db, const char *room_id);
+int db_is_room_creator(Database *db, const char *room_id, const char *username);
+int db_is_in_room(Database *db, const char *room_id, const char *username);
+
 #endif // DATABASE_H

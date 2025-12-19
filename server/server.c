@@ -192,60 +192,6 @@ void *handle_client(void *arg)
             break;
         }
 
-        // ===================================== Data message =====================================
-        // CODE DATA length\n
-        if (strstr(buffer, " DATA "))
-        { // -> buffer = " DATA length\n"
-            // extract length and receive full data
-            char temp[256];
-            strncpy(temp, buffer, sizeof(temp) - 1);
-            char *nl = strchr(temp, '\n');
-            if (nl)
-                *nl = '\0'; // -> temp = " DATA length"
-
-            char *length_str = strrchr(temp, ' '); // -> length_str = " length"
-            if (!length_str)
-            {
-                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid DATA message format");
-                continue;
-            }
-
-            size_t length = (size_t)atoll(length_str + 1);
-            if (length > MAX_DATA_SIZE)
-            {
-                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Data size too large");
-                continue;
-            }
-
-            char *full_buffer = (char *)malloc(bytes_received + length + 1);
-            if (!full_buffer)
-            {
-                send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Memory allocation failed");
-                continue;
-            }
-
-            memcpy(full_buffer, buffer, bytes_received);
-            if (recv_full(client->socket_fd, full_buffer + bytes_received, length) < 0)
-            {
-                free(full_buffer);
-                break;
-            }
-
-            full_buffer[bytes_received + length] = '\0';
-
-            Message msg;
-            if (parse_message(full_buffer, &msg) < 0)
-            {
-                send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Invalid message format");
-                free(full_buffer);
-                continue;
-            }
-
-            free(full_buffer);
-            free_message(&msg);
-            continue;
-        }
-
         // ==================================== Control message =====================================
         // COMMAND param1|param2\n
         client->last_activity = time(NULL);
@@ -282,6 +228,18 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_JOIN_ROOM) == 0)
         {
             handle_join_room(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_LEAVE_ROOM) == 0)
+        {
+            handle_leave_room(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_START_EXAM) == 0)
+        {
+            handle_start_exam(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, "FINISH_EXAM") == 0)
+        {
+            handle_finish_exam(g_server, client, &msg);
         }
         else if (strcmp(msg.command, MSG_PING) == 0)
         {
