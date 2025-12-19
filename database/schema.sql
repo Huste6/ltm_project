@@ -318,4 +318,13 @@ CREATE INDEX idx_room_status_created ON rooms(status, created_at);
 CREATE INDEX idx_results_room_score ON exam_results(room_id, score DESC, submit_time ASC);
 CREATE INDEX idx_sessions_active ON sessions(is_active, last_activity);
 
+-- ==============================================
+-- GRANT PRIVILEGES - Allow connections from any host
+-- ==============================================
+-- Grant all privileges on exam_system database to exam_user from any host
+GRANT ALL PRIVILEGES ON exam_system.* TO 'exam_user'@'%' IDENTIFIED BY 'exam123456';
+GRANT ALL PRIVILEGES ON exam_system.* TO 'exam_user'@'localhost' IDENTIFIED BY 'exam123456';
+GRANT ALL PRIVILEGES ON exam_system.* TO 'exam_user'@'127.0.0.1' IDENTIFIED BY 'exam123456';
+FLUSH PRIVILEGES;
+
 SHOW TABLES;

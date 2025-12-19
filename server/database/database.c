@@ -287,25 +287,26 @@ char *db_list_rooms(Database *db, const char *status_filter)
     {
         snprintf(query, sizeof(query),
                  "SELECT r.room_id, r.room_name, r.creator, r.status, "
-                 "(COUNT(p.username) as participant_count, " // Number of participants in the room, if none then 0
+                 "COALESCE(COUNT(p.username), 0) as participant_count, "
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-                 "FROM rooms r JOIN participants p ON r.room_id = p.room_id " // include all rooms even those with 0 participants
+                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
                  "GROUP BY r.room_id ORDER BY r.created_at DESC");
     }
     else
     {
         snprintf(query, sizeof(query),
                  "SELECT r.room_id, r.room_name, r.creator, r.status, "
-                 "COUNT(p.username) as participant_count, "
+                 "COALESCE(COUNT(p.username), 0) as participant_count, "
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-                 "FROM rooms r JOIN participants p ON r.room_id = p.room_id "
-                 "WHERE r.status='%s' " // Filter by status
+                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
+                 "WHERE r.status='%s' "
                  "GROUP BY r.room_id ORDER BY r.created_at DESC",
                  status_filter);
     }
 
     if (mysql_query(db->conn, query)) // Execute query, if error(mysql_query return non-zero), return NULL
     {
+        fprintf(stderr, "db_list_rooms query failed: %s\nQuery: %s\n", mysql_error(db->conn), query);
         pthread_mutex_unlock(&db->mutex);
         return NULL;
     }

@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 int main()
 {
@@ -73,14 +74,42 @@ int main()
             }
             break;
         case CLIENT_IN_ROOM:
-            client.state = CLIENT_AUTHENTICATED;
+            ui_print_menu_room();
+            scanf("%d", &choice);
+            getchar();
+
+            switch (choice)
+            {
+            case 1:
+                handle_start_exam(&client);
+                break;
+            case 2:
+                handle_leave_room(&client);
+                break;
+            case 0:
+                client.state = CLIENT_AUTHENTICATED;
+                break;
+            default:
+                ui_show_error("Invalid choice!");
+                break;
+            }
+            break;
+        case CLIENT_IN_EXAM:
+            // In exam - waiting for exam to start or questions to load
+            printf("\n=== EXAM IN PROGRESS ===\n");
+            printf("Waiting for exam questions...\n");
+            printf("(Press Ctrl+C to quit)\n");
+            sleep(2);
+            // For now, just go back to room
+            // TODO: Implement exam UI with questions
+            client.state = CLIENT_IN_ROOM;
             break;
 
         default:
             break;
         }
 
-        if (running)
+        if (running && client.state != CLIENT_IN_ROOM && client.state != CLIENT_IN_EXAM)
         {
             ui_wait_enter();
         }
