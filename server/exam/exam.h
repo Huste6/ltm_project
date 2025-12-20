@@ -22,6 +22,23 @@ typedef struct Server Server;
 void handle_view_result(Server *server, ClientSession *client, Message *msg);
 
 /**
+ * @brief Xử lý lấy câu hỏi bài thi cho người dùng
+ * @param server Pointer tới Server instance
+ * @param client Pointer tới ClientSession
+ * @param msg Message đã parse (GET_EXAM room_id)
+ *
+ * Flow:
+ * 1. Check user authentication (221 if not)
+ * 2. Check room exists (223 if not)
+ * 3. Check room status NOT_STARTED (224 if true)
+ * 4. Check room status FINISHED (225 if true)
+ * 5. Check user in room (227 if not)
+ * 6. Get exam questions from DB (JSON format, NO correct_answer)
+ * 7. Response: 150 DATA <length>\n<JSON questions>
+ */
+void handle_get_exam(Server *server, ClientSession *client, Message *msg);
+
+/**
  * @brief Xử lý bắt đầu bài thi (chỉ creator)
  * @param server Pointer tới Server instance
  * @param client Pointer tới ClientSession

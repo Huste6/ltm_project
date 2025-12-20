@@ -6,6 +6,85 @@
 #include <time.h>
 
 /**
+ * @brief Handle GET_EXAM command - return exam questions
+ */
+void handle_get_exam(Server *server, ClientSession *client, Message *msg)
+{
+    // 1. Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, 221, "NOT_LOGGED");
+        return;
+    }
+
+    // 2. Validate params
+    if (msg->param_count < 1)
+    {
+        send_error_or_response(client->socket_fd, 300, "BAD_COMMAND");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+
+    // 3. Check room exists
+    int status = db_get_room_status(server->db, room_id);
+    if (status < 0)
+    {
+        send_error_or_response(client->socket_fd, 223, "ROOM_NOT_FOUND");
+        db_log_activity(server->db, "WARNING", client->username, "GET_EXAM", "Room not found");
+        return;
+    }
+
+    // 4. Check room NOT_STARTED (status 0 = NOT_STARTED)
+    if (status == 0)
+    {
+        send_error_or_response(client->socket_fd, 224, "ROOM_NOT_STARTED");
+        db_log_activity(server->db, "WARNING", client->username, "GET_EXAM", "Room not started yet");
+        return;
+    }
+
+    // 5. Check room FINISHED (status 2 = FINISHED)
+    if (status == 2)
+    {
+        send_error_or_response(client->socket_fd, 225, "ROOM_FINISHED");
+        db_log_activity(server->db, "WARNING", client->username, "GET_EXAM", "Room already finished");
+        return;
+    }
+
+    // 6. Check user in room
+    if (!db_is_in_room(server->db, client->username, room_id))
+    {
+        send_error_or_response(client->socket_fd, 227, "NOT_IN_ROOM");
+        db_log_activity(server->db, "WARNING", client->username, "GET_EXAM", "User not in room");
+        return;
+    }
+
+    // 7. Get exam questions from DB
+    char *exam_json = db_get_exam_questions(server->db, room_id);
+    if (!exam_json)
+    {
+        send_error_or_response(client->socket_fd, 300, "BAD_COMMAND");
+        db_log_activity(server->db, "ERROR", client->username, "GET_EXAM", "Failed to get questions");
+        return;
+    }
+
+    // 8. Send response: 150 DATA <length>\n<JSON>
+    char buffer[1024 * 1024]; // 1MB buffer for exam data
+    int len = create_data_message(150, exam_json, strlen(exam_json), buffer, sizeof(buffer));
+    if (len > 0)
+    {
+        send_full(client->socket_fd, buffer, len);
+        db_log_activity(server->db, "INFO", client->username, "GET_EXAM", "Success");
+    }
+    else
+    {
+        send_error_or_response(client->socket_fd, 300, "BAD_COMMAND");
+    }
+
+    free(exam_json);
+}
+
+/**
  * @brief Handle VIEW_RESULT command
  */
 void handle_view_result(Server *server, ClientSession *client, Message *msg)

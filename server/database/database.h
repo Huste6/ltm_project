@@ -41,7 +41,8 @@ int db_get_room_status(Database *db, const char *room_id);
 int db_get_room_participant_count(Database *db, const char *room_id);
 
 // Exam operations
-char* db_get_room_leaderboard(Database *db, const char *room_id);
+char *db_get_room_leaderboard(Database *db, const char *room_id);
+char *db_get_exam_questions(Database *db, const char *room_id);
 int db_leave_room(Database *db, const char *room_id, const char *username);
 int db_start_room(Database *db, const char *room_id);
 int db_finish_room(Database *db, const char *room_id);

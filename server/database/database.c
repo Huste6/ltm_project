@@ -482,6 +482,89 @@ char *db_get_room_leaderboard(Database *db, const char *room_id)
 
     return json;
 }
+
+/**
+ * @brief Get exam questions for a room (without correct answers for security)
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return JSON string with questions array, NULL on error
+ *
+ * Format: {"questions":[{"question_id":1,"content":"...","options":["A","B","C","D"]},...]}}
+ * IMPORTANT: NEVER include "correct_answer" field!
+ */
+char *db_get_exam_questions(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Query to get questions for this room
+    // Join room_questions with questions table to get full question data
+    char query[2048];
+    snprintf(query, sizeof(query),
+             "SELECT q.id, q.question_text, q.option_a, q.option_b, q.option_c, q.option_d "
+             "FROM room_questions rq "
+             "JOIN questions q ON rq.question_id = q.id "
+             "WHERE rq.room_id='%s' "
+             "ORDER BY rq.question_order ASC",
+             room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "db_get_exam_questions query failed: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        fprintf(stderr, "db_get_exam_questions mysql_store_result failed\n");
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    // Build JSON response with questions
+    char *json = malloc(1024 * 1024); // 1MB buffer for exam data
+    if (!json)
+    {
+        mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    strcpy(json, "{\n  \"questions\": [\n");
+
+    MYSQL_ROW row;
+    int first = 1;
+    while ((row = mysql_fetch_row(result)))
+    {
+        if (!first)
+            strcat(json, ",\n");
+        first = 0;
+
+        // Build options array: ["option_a", "option_b", "option_c", "option_d"]
+        char options_str[512];
+        snprintf(options_str, sizeof(options_str),
+                 "[\"A\",\"B\",\"C\",\"D\"]");
+
+        // Build question entry (WITHOUT correct_answer!)
+        char entry[1024];
+        snprintf(entry, sizeof(entry),
+                 "    {\"question_id\":%s,\"content\":\"%s\",\"options\":%s}",
+                 row[0], // question_id
+                 row[1], // question_text (content)
+                 options_str);
+
+        strcat(json, entry);
+    }
+
+    strcat(json, "\n  ]\n}");
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return json;
+}
+
 /**
  * @brief Remove user from room participants
  * @param db Pointer to Database

@@ -191,7 +191,7 @@ void *handle_client(void *arg)
             log_event(LOG_INFO, client->username[0] ? client->username : "anonymous", "DISCONNECT", "Client socket %d disconnected", client->socket_fd);
             break;
         }
-          
+
         // parse control message
 
         // ==================================== Control message =====================================
@@ -239,6 +239,10 @@ void *handle_client(void *arg)
         {
             handle_start_exam(g_server, client, &msg);
         }
+        else if (strcmp(msg.command, MSG_GET_EXAM) == 0)
+        {
+            handle_get_exam(g_server, client, &msg);
+        }
         else if (strcmp(msg.command, "FINISH_EXAM") == 0)
         {
             handle_finish_exam(g_server, client, &msg);
@@ -246,7 +250,7 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_PING) == 0)
         {
             send_error_or_response(client->socket_fd, CODE_PONG, "PONG");
-        } 
+        }
         else if (strcmp(msg.command, MSG_VIEW_RESULT) == 0)
         {
             handle_view_result(g_server, client, &msg);
