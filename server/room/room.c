@@ -170,7 +170,7 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
     // Check room not started (status: 0=NOT_STARTED, 1=IN_PROGRESS, 2=FINISHED)
     if (status == 1)
     {
-        send_error_or_response(client->socket_fd, CODE_ROOM_ALREADY_STARTED, room_id);
+        send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
         db_log_activity(server->db, "WARNING", client->username, "JOIN_ROOM", "Room already started");
         return;
     }

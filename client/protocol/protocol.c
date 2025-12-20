@@ -296,7 +296,7 @@ const char *get_code_description(int code)
         return "SESSION_EXPIRED";
     case CODE_ROOM_NOT_FOUND:
         return "ROOM_NOT_FOUND";
-    case CODE_ROOM_ALREADY_STARTED:
+    case CODE_ROOM_IN_PROGRESS:
         return "ROOM_ALREADY_STARTED";
     case CODE_ROOM_FINISHED:
         return "ROOM_FINISHED";

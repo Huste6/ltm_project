@@ -109,7 +109,7 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
     int status = db_get_room_status(server->db, room_id);
     if (status != 2)
     {
-        send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
+        send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
         db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not finished");
         return;
     }
@@ -213,7 +213,7 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
     // Check room not started (status must be 0 = NOT_STARTED)
     if (status != 0) // 1 = IN_PROGRESS, 2 = FINISHED
     {
-        send_error_or_response(client->socket_fd, CODE_ROOM_ALREADY_STARTED, room_id);
+        send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
         db_log_activity(server->db, "WARNING", client->username,
                         "START_EXAM", "Room already started");
         return;

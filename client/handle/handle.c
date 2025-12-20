@@ -343,7 +343,7 @@ void handle_join_room(Client *client)
     }
 
     // Room already started
-    else if (resp.code == CODE_ROOM_ALREADY_STARTED)
+    else if (resp.code == CODE_ROOM_IN_PROGRESS)
     {
         char error[256];
         snprintf(error, sizeof(error), "Room already started!\n");

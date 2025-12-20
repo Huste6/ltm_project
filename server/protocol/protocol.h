@@ -45,16 +45,16 @@
 #define CODE_SESSION_EXPIRED 222   // Session hết hạn
 
 // Room Errors
-#define CODE_ROOM_NOT_FOUND 223       // Không tìm thấy phòng
-#define CODE_ROOM_ALREADY_STARTED 224 // Phòng đã bắt đầu
-#define CODE_ROOM_FINISHED 225        // Phòng đã kết thúc
-#define CODE_NOT_CREATOR 226          // Không phải người tạo
-#define CODE_NOT_IN_ROOM 227          // Không ở trong phòng
-#define CODE_ROOM_FULL 228            // Phòng đầy
-#define CODE_EXAM_STARTED 124         // Exam bắt đầu
-#define CODE_EXAM_FINISHED 125        // Exam kết thúc
-#define CODE_NOT_ALLOWED 229          // Không có quyền
-#define CODE_INVALID_STATE 231        // Trạng thái không hợp lệ
+#define CODE_ROOM_NOT_FOUND 223   // Không tìm thấy phòng
+#define CODE_ROOM_IN_PROGRESS 224 // Phòng đã bắt đầu
+#define CODE_ROOM_FINISHED 225    // Phòng đã kết thúc
+#define CODE_NOT_CREATOR 226      // Không phải người tạo
+#define CODE_NOT_IN_ROOM 227      // Không ở trong phòng
+#define CODE_ROOM_FULL 228        // Phòng đầy
+#define CODE_EXAM_STARTED 124     // Exam bắt đầu
+#define CODE_EXAM_FINISHED 125    // Exam kết thúc
+#define CODE_NOT_ALLOWED 229      // Không có quyền
+#define CODE_INVALID_STATE 231    // Trạng thái không hợp lệ
 
 // Submit Errors
 #define CODE_TIME_EXPIRED 230 // Hết giờ
