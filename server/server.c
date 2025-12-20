@@ -193,6 +193,9 @@ void *handle_client(void *arg)
         }
           
         // parse control message
+
+        // ==================================== Control message =====================================
+        // COMMAND param1|param2\n
         client->last_activity = time(NULL);
         Message msg;
         if (parse_message(buffer, &msg) < 0)
@@ -227,6 +230,18 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_JOIN_ROOM) == 0)
         {
             handle_join_room(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_LEAVE_ROOM) == 0)
+        {
+            handle_leave_room(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_START_EXAM) == 0)
+        {
+            handle_start_exam(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, "FINISH_EXAM") == 0)
+        {
+            handle_finish_exam(g_server, client, &msg);
         }
         else if (strcmp(msg.command, MSG_PING) == 0)
         {

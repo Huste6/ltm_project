@@ -42,5 +42,10 @@ int db_get_room_participant_count(Database *db, const char *room_id);
 
 // Exam operations
 char* db_get_room_leaderboard(Database *db, const char *room_id);
+int db_leave_room(Database *db, const char *room_id, const char *username);
+int db_start_room(Database *db, const char *room_id);
+int db_finish_room(Database *db, const char *room_id);
+int db_is_room_creator(Database *db, const char *room_id, const char *username);
+int db_is_in_room(Database *db, const char *room_id, const char *username);
 
 #endif // DATABASE_H

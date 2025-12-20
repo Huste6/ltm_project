@@ -244,18 +244,18 @@ char *db_list_rooms(Database *db, const char *status_filter)
     {
         snprintf(query, sizeof(query),
                  "SELECT r.room_id, r.room_name, r.creator, r.status, "
-                 "COALESCE(COUNT(p.username), 0) as participant_count, " // Number of participants in the room, if none then 0
+                 "(COUNT(p.username) as participant_count, " // Number of participants in the room, if none then 0
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id " // include all rooms even those with 0 participants
+                 "FROM rooms r JOIN participants p ON r.room_id = p.room_id " // include all rooms even those with 0 participants
                  "GROUP BY r.room_id ORDER BY r.created_at DESC");
     }
     else
     {
         snprintf(query, sizeof(query),
                  "SELECT r.room_id, r.room_name, r.creator, r.status, "
-                 "COALESCE(COUNT(p.username), 0) as participant_count, "
+                 "COUNT(p.username) as participant_count, "
                  "r.max_participants, r.num_questions, r.time_limit_minutes, r.created_at "
-                 "FROM rooms r LEFT JOIN participants p ON r.room_id = p.room_id "
+                 "FROM rooms r JOIN participants p ON r.room_id = p.room_id "
                  "WHERE r.status='%s' " // Filter by status
                  "GROUP BY r.room_id ORDER BY r.created_at DESC",
                  status_filter);
@@ -291,12 +291,28 @@ char *db_list_rooms(Database *db, const char *status_filter)
                  "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
                  "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"},",
                  row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
-        strcat(json, "    ");     // Indent 4 spaces
         strcat(json, room_entry); // Append room entry to JSON
         strcat(json, "\n");
     }
 
-    strcat(json, "\n  ]\n}");
+    strcat(json, "  ]\n}");
+    // json:
+    // {
+    //   "rooms": [
+    //     {
+    //       "room_id": "1234567890",
+    //       "room_name": "Sample Room",
+    //       "creator": "user1",
+    //       "status": "NOT_STARTED",
+    //       "participant_count": 5,
+    //       "max_participants": 10,
+    //       "num_questions": 20,
+    //       "time_limit_minutes": 15,
+    //       "created_at": "2024-10-01 12:34:56"
+    //     },
+    //     ...
+    //   ]
+    // }
 
     mysql_free_result(result); // Free the result set to avoid memory leaks
     pthread_mutex_unlock(&db->mutex);
@@ -460,4 +476,142 @@ char* db_get_room_leaderboard(Database *db, const char *room_id) {
     pthread_mutex_unlock(&db->mutex);
     
     return json;
+}
+ * @brief Remove user from room participants
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @param username Username to remove
+ * @return 0 on success, -1 on failure
+ */
+int db_leave_room(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "DELETE FROM participants WHERE room_id='%s' AND username='%s'",
+             room_id, username);
+
+    int result = mysql_query(db->conn, query);
+
+    pthread_mutex_unlock(&db->mutex);
+    return result == 0 ? 0 : -1;
+}
+
+/**
+ * @brief Start a room exam (change status from NOT_STARTED to IN_PROGRESS)
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return 0 on success, -1 on failure
+ */
+int db_start_room(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "UPDATE rooms SET status='IN_PROGRESS', start_time=NOW() WHERE room_id='%s'",
+             room_id);
+
+    int result = mysql_query(db->conn, query);
+
+    pthread_mutex_unlock(&db->mutex);
+    return result == 0 ? 0 : -1;
+}
+
+/**
+ * @brief Finish a room exam (change status to FINISHED)
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return 0 on success, -1 on failure
+ */
+int db_finish_room(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "UPDATE rooms SET status='FINISHED', finish_time=NOW() WHERE room_id='%s'",
+             room_id);
+
+    int result = mysql_query(db->conn, query);
+
+    pthread_mutex_unlock(&db->mutex);
+    return result == 0 ? 0 : -1;
+}
+
+/**
+ * @brief Check if user is the creator of a room
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @param username Username to check
+ * @return 1 if user is creator, 0 otherwise
+ */
+int db_is_room_creator(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM rooms WHERE room_id='%s' AND creator='%s'",
+             room_id, username);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int is_creator = row ? (atoi(row[0]) > 0) : 0;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return is_creator;
+}
+
+/**
+ * @brief Check if user is in a room (participant)
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @param username Username to check
+ * @return 1 if user is in room, 0 otherwise
+ */
+int db_is_in_room(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM participants WHERE room_id='%s' AND username='%s'",
+             room_id, username);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int in_room = row ? (atoi(row[0]) > 0) : 0;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return in_room;
 }

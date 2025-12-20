@@ -105,8 +105,7 @@ void handle_list_rooms(Server *server, ClientSession *client, Message *msg)
         strcmp(filter, "IN_PROGRESS") != 0 &&
         strcmp(filter, "FINISHED") != 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "Filter must be: ALL, NOT_STARTED, IN_PROGRESS, or FINISHED");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "Filter must be: ALL, NOT_STARTED, IN_PROGRESS, or FINISHED");
         return;
     }
 
@@ -114,10 +113,8 @@ void handle_list_rooms(Server *server, ClientSession *client, Message *msg)
     char *json_data = db_list_rooms(server->db, filter);
     if (!json_data)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to fetch rooms");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "LIST_ROOMS", "Database error");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to fetch rooms");
+        db_log_activity(server->db, "ERROR", client->username, "LIST_ROOMS", "Database error");
         return;
     }
 
@@ -219,4 +216,123 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg)
  */
 void handle_leave_room(Server *server, ClientSession *client, Message *msg)
 {
+    // Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_LOGGED, "Not authenticated");
+        return;
+    }
+
+    // Validate params
+    if (msg->param_count < 1)
+    {
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
+                               "Usage: LEAVE_ROOM room_id");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+
+    // Check user is in room
+    if (!db_is_in_room(server->db, room_id, client->username))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "LEAVE_ROOM", "Not in room");
+        return;
+    }
+
+    // Leave room
+    if (db_leave_room(server->db, room_id, client->username) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to leave room");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "LEAVE_ROOM", "Database error");
+        return;
+    }
+
+    // Update client session
+    memset(client->current_room, 0, sizeof(client->current_room));
+    client->state = STATE_AUTHENTICATED;
+
+    // Send success response
+    send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK, room_id);
+
+    db_log_activity(server->db, "INFO", client->username,
+                    "LEAVE_ROOM", room_id);
+
+    printf("[LEAVE_ROOM] User '%s' left room '%s'\n",
+           client->username, room_id);
+}
+
+/**
+ * @brief Handle FINISH_EXAM command - transition room from IN_PROGRESS to FINISHED
+ */
+void handle_finish_exam(Server *server, ClientSession *client, Message *msg)
+{
+    // Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_LOGGED, "Not authenticated");
+        return;
+    }
+
+    // Validate params
+    if (msg->param_count < 1)
+    {
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
+                               "Usage: FINISH_EXAM room_id");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+
+    // Check user is room creator
+    if (!db_is_room_creator(&server->db, room_id, client->username))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_ALLOWED,
+                               "Only room creator can finish exam");
+        db_log_activity(server->db, "WARNING", client->username,
+                        "FINISH_EXAM", "Not creator of room");
+        return;
+    }
+
+    // Check room exists and status = IN_PROGRESS
+    int status = db_get_room_status(&server->db, room_id);
+    if (status < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "FINISH_EXAM", "Room not found");
+        return;
+    }
+
+    if (status != 1) // 1 = IN_PROGRESS
+    {
+        send_error_or_response(client->socket_fd, CODE_INVALID_STATE,
+                               "Room must be IN_PROGRESS to finish exam");
+        db_log_activity(server->db, "WARNING", client->username,
+                        "FINISH_EXAM", "Room not in progress");
+        return;
+    }
+
+    // Finish room (update status to FINISHED)
+    if (db_finish_room(&server->db, room_id) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to finish exam");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "FINISH_EXAM", "Database error");
+        return;
+    }
+
+    // Send success response
+    send_error_or_response(client->socket_fd, CODE_EXAM_FINISHED, room_id);
+
+    db_log_activity(server->db, "INFO", client->username,
+                    "FINISH_EXAM", room_id);
+
+    printf("[FINISH_EXAM] User '%s' finished exam in room '%s'\n",
+           client->username, room_id);
 }

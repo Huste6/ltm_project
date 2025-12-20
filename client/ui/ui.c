@@ -49,6 +49,17 @@ void ui_print_menu_authenticated()
     printf("Choice: ");
 }
 
+void ui_print_list_room_filter()
+{
+    printf("\n=== LIST ROOMS ===\n");
+    printf("Select filter:\n");
+    printf("1. NOT_STARTED\n");
+    printf("2. IN_PROGRESS\n");
+    printf("3. FINISHED\n");
+    printf("0. ALL (default)\n");
+    printf("Choice (press Enter for ALL): ");
+}
+
 /**
  * @brief Print room menu
  */

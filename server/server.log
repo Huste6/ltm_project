@@ -62,3 +62,51 @@
 [2025-12-15 01:09:49] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:40600
 [2025-12-15 01:11:53] [INFO] [sang2] DISCONNECT: Client socket 6 disconnected
 [2025-12-15 01:11:53] [INFO] [sang2] DISCONNECT: Session destroyed
+[2025-12-19 22:41:21] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:41:21] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:41:21] [ERROR] [SYSTEM] SERVER: Socket bind failed
+[2025-12-19 22:41:47] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:41:47] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:41:47] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-19 22:41:47] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-19 22:42:14] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:34064
+[2025-12-19 22:44:31] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 22:45:00] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:59654
+[2025-12-19 22:45:21] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-19 22:45:37] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:40456
+[2025-12-19 22:46:30] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 22:46:55] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:58048
+[2025-12-19 22:47:09] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-19 22:48:30] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:48:30] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:48:30] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-19 22:48:30] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-19 22:49:00] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:49:00] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:49:00] [ERROR] [SYSTEM] SERVER: Socket bind failed
+[2025-12-19 22:49:12] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:49:12] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:49:12] [ERROR] [SYSTEM] SERVER: Socket bind failed
+[2025-12-19 22:49:26] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:37786
+[2025-12-19 22:50:17] [INFO] [san] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 22:50:17] [INFO] [san] DISCONNECT: Session destroyed
+[2025-12-19 22:52:52] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:33916
+[2025-12-19 22:53:12] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-19 22:53:31] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:55474
+[2025-12-19 22:53:39] [INFO] [testuser_nav] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 22:53:39] [INFO] [testuser_nav] DISCONNECT: Session destroyed
+[2025-12-19 22:55:37] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:60562
+[2025-12-19 22:56:07] [INFO] [creator_full_test] DISCONNECT: Client socket 7 disconnected
+[2025-12-19 22:56:07] [INFO] [creator_full_test] DISCONNECT: Session destroyed
+[2025-12-19 22:56:18] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:54630
+[2025-12-19 22:56:48] [INFO] [creator_full_test] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 22:56:48] [INFO] [creator_full_test] DISCONNECT: Session destroyed
+[2025-12-19 22:57:39] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:41126
+[2025-12-19 22:59:29] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-19 22:59:29] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-19 22:59:29] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-19 22:59:29] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-19 22:59:43] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:34828
+[2025-12-19 22:59:53] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-19 23:00:18] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:33696
+[2025-12-19 23:00:29] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected

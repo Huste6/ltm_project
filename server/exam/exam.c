@@ -60,3 +60,129 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
     free(leaderboard_json);
     printf("[VIEW_RESULT] User '%s' viewed results for room '%s'\n", client->username, room_id);
 }
+// ==========================================
+#include "exam.h"
+#include "../server.h"
+#include "../auth/auth.h"
+#include <stdio.h>
+#include <string.h>
+#include <time.h>
+
+/**
+ * @brief Broadcast message to all participants in room
+ */
+void broadcast_to_room(Server *server, const char *room_id, const char *message)
+{
+    pthread_mutex_lock(&server->clients_mutex);
+
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        ClientSession *client = &server->clients[i];
+        if (client->active && strcmp(client->current_room, room_id) == 0)
+        {
+            send_full(client->socket_fd, message, strlen(message));
+            printf("  [BROADCAST] Sent to user '%s'\n", client->username);
+        }
+    }
+
+    pthread_mutex_unlock(&server->clients_mutex);
+}
+
+/**
+ * @brief Handle START_EXAM command
+ */
+void handle_start_exam(Server *server, ClientSession *client, Message *msg)
+{
+    // Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_LOGGED, "Not authenticated");
+        return;
+    }
+
+    // Validate params
+    if (msg->param_count < 1)
+    {
+        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR,
+                               "Usage: START_EXAM room_id");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+
+    // Check room status FIRST (to verify room exists)
+    int status = db_get_room_status(server->db, room_id);
+
+    // Check if room exists (status < 0 means not found)
+    if (status < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "START_EXAM", "Room not found");
+        return;
+    }
+
+    // Check user is creator (after confirming room exists)
+    if (!db_is_room_creator(server->db, room_id, client->username))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_CREATOR, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "START_EXAM", "Not creator");
+        return;
+    }
+
+    // Check room not started (status must be 0 = NOT_STARTED)
+    if (status != 0) // 1 = IN_PROGRESS, 2 = FINISHED
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_ALREADY_STARTED, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "START_EXAM", "Room already started");
+        return;
+    }
+
+    // Start room (update status to IN_PROGRESS)
+    if (db_start_room(server->db, room_id) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to start exam");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "START_EXAM", "Database error");
+        return;
+    }
+
+    // Get start time
+    time_t now = time(NULL);
+    char timestamp[64];
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S",
+             localtime(&now));
+
+    // Prepare broadcast message
+    char broadcast_msg[256];
+    snprintf(broadcast_msg, sizeof(broadcast_msg), "125 START_OK %s|%s\n",
+             room_id, timestamp);
+
+    // Broadcast to all participants
+    printf("[START_EXAM] Broadcasting to room '%s'...\n", room_id);
+    broadcast_to_room(server, room_id, broadcast_msg);
+
+    // Update all client sessions in this room to IN_EXAM state
+    pthread_mutex_lock(&server->clients_mutex);
+    for (int i = 0; i < MAX_CLIENTS; i++)
+    {
+        if (server->clients[i].active &&
+            strcmp(server->clients[i].current_room, room_id) == 0)
+        {
+            server->clients[i].state = STATE_IN_EXAM;
+        }
+    }
+    pthread_mutex_unlock(&server->clients_mutex);
+
+    // Log activity
+    char details[256];
+    snprintf(details, sizeof(details), "Exam started at %s", timestamp);
+    db_log_activity(server->db, "INFO", client->username,
+                    "START_EXAM", details);
+
+    printf("[START_EXAM] Room '%s' started by '%s' at %s\n",
+           room_id, client->username, timestamp);
+}

@@ -157,19 +157,13 @@ void handle_list_rooms(Client *client)
     char input_line[32];
     int choice = -1;
 
-    printf("\n=== LIST ROOMS ===\n");
-    printf("Select filter:\n");
-    printf("1. NOT_STARTED\n");
-    printf("2. IN_PROGRESS\n");
-    printf("3. FINISHED\n");
-    printf("0. ALL (default)\n");
-    printf("Choice (press Enter for ALL): ");
+    ui_print_list_room_filter();
 
     // Read entire line, including newline character, enter newline = filter ALL
     if (fgets(input_line, sizeof(input_line), stdin) != NULL)
     {
         // Try to parse as integer
-        if (sscanf(input_line, "%d", &choice) != 1)
+        if (sscanf(input_line, "%d", &choice) != 1) // not a number, sscanf fails
         {
             choice = 0; // Default to ALL if not a number or empty
         }
@@ -391,12 +385,27 @@ void handle_view_result(Client *client)
     // send command = "VIEW_RESULT room_id\n"
     const char *params[] = {room_id};
     if (client_create_send_command(client, "VIEW_RESULT", params, 1) < 0)
+ * @brief Handle leave room
+ */
+void handle_leave_room(Client *client)
+{
+    printf("\n=== LEAVE ROOM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    // Send command
+    const char *params[] = {client->current_room};
+    if (client_send_command(client, "LEAVE_ROOM", params, 1) < 0)
     {
         ui_show_error("Failed to send command");
         return;
     }
 
-    // receive response
+    // Receive response
     Response resp;
     if (client_receive_response(client, &resp) < 0)
     {
@@ -416,6 +425,11 @@ void handle_view_result(Client *client)
         printf("\n");
 
         free(resp.data); 
+    if (resp.code == CODE_ROOM_LEAVE_OK)
+    {
+        ui_show_success("Left the room successfully");
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
     }
     else
     {
@@ -423,4 +437,51 @@ void handle_view_result(Client *client)
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
+}
+
+/**
+ * @brief Handle start exam
+ */
+void handle_start_exam(Client *client)
+{
+    printf("\n=== START EXAM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    ui_show_info("Starting exam...");
+
+    // Send command
+    const char *params[] = {client->current_room};
+    if (client_send_command(client, "START_EXAM", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == CODE_START_OK)
+    {
+        client->state = CLIENT_IN_EXAM;
+        ui_show_success("Exam started!");
+        printf("Start time: %s\n", resp.message);
+        ui_show_info("All participants have been notified");
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}
 }

@@ -13,12 +13,15 @@ static pthread_mutex_t log_mutex = PTHREAD_MUTEX_INITIALIZER;
  * @param filename Log file path (NULL for stdout only)
  * @return 0 on success, -1 on error
  */
-int logger_init(const char *filename) {
+int logger_init(const char *filename)
+{
     pthread_mutex_lock(&log_mutex);
 
-    if (filename) {
+    if (filename)
+    {
         log_file = fopen(filename, "a");
-        if (!log_file) {
+        if (!log_file)
+        {
             pthread_mutex_unlock(&log_mutex);
             return -1;
         }
@@ -30,9 +33,11 @@ int logger_init(const char *filename) {
 /**
  * @brief Close Logger
  */
-void logger_close() {
+void logger_close()
+{
     pthread_mutex_lock(&log_mutex);
-    if (log_file) {
+    if (log_file)
+    {
         fclose(log_file);
         log_file = NULL;
     }
@@ -44,12 +49,18 @@ void logger_close() {
  * @param level Log level
  * @return String representation of log level
  */
-const char* log_level_string(LogLevel level) {
-    switch(level) {
-        case LOG_INFO: return "INFO"; // Bình thường
-        case LOG_WARNING: return "WARNING"; // Cảnh báo
-        case LOG_ERROR: return "ERROR"; // Lỗi nghiêm trọng
-        default: return "UNKNOWN"; // Không xác định
+const char *log_level_string(LogLevel level)
+{
+    switch (level)
+    {
+    case LOG_INFO:
+        return "INFO"; // Bình thường
+    case LOG_WARNING:
+        return "WARNING"; // Cảnh báo
+    case LOG_ERROR:
+        return "ERROR"; // Lỗi nghiêm trọng
+    default:
+        return "UNKNOWN"; // Không xác định
     }
 }
 
@@ -59,6 +70,10 @@ const char* log_level_string(LogLevel level) {
 //  log_event(LOG_INFO, "john_doe", "LOGIN", "User %s logged in successfully", username);
 //  [2024-06-01 12:00:00] [INFO] [john_doe] LOGIN: User username logged in successfully
 void log_event(LogLevel level, const char *username, const char *action, const char *format, ...) {
+//  log_event(LOG_INFO, "john_doe", "LOGIN", "User logged in successfully");
+//  [2024-06-01 12:00:00] [INFO] [john_doe] LOGIN: User logged in successfully
+void log_event(LogLevel level, const char *username, const char *action, const char *format, ...)
+{
     pthread_mutex_lock(&log_mutex);
 
     // Get timestamp
@@ -68,9 +83,9 @@ void log_event(LogLevel level, const char *username, const char *action, const c
 
     // Format message
     char message[1024];
-    va_list args; // dùng để duyệt qua các tham số biến thiên
-    va_start(args, format); // bắt đầu lấy tham số sau format 
-    vsnprintf(message, sizeof(message), format, args); 
+    va_list args;           // dùng để duyệt qua các tham số biến thiên
+    va_start(args, format); // bắt đầu lấy tham số sau format
+    vsnprintf(message, sizeof(message), format, args);
     va_end(args); // kết thúc lấy tham số biến thiên
 
     // Format log entry
@@ -82,14 +97,16 @@ void log_event(LogLevel level, const char *username, const char *action, const c
              action,
              message);
 
-    // Write to log file 
-    if (log_file) {
+    // Write to log file
+    if (log_file)
+    {
         fputs(log_entry, log_file);
         fflush(log_file);
     }
 
     // in ra console nếu là lỗi hoặc cảnh báo
-    if (level == LOG_ERROR || level == LOG_WARNING) {
+    if (level == LOG_ERROR || level == LOG_WARNING)
+    {
         fputs(log_entry, stdout);
         fflush(stdout);
     }
