@@ -110,3 +110,33 @@
 [2025-12-19 22:59:53] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
 [2025-12-19 23:00:18] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:33696
 [2025-12-19 23:00:29] [INFO] [anonymous] DISCONNECT: Client socket 7 disconnected
+[2025-12-20 13:10:09] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-20 13:10:09] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-20 13:10:09] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-20 13:10:09] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-20 13:10:29] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:47698
+[2025-12-20 13:10:30] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-20 13:11:04] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-20 13:11:04] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-20 13:11:04] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-20 13:11:04] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-20 13:11:07] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:51546
+[2025-12-20 13:11:07] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-20 13:11:22] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-20 13:11:22] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-20 13:11:22] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-20 13:11:22] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-20 13:11:24] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:32986
+[2025-12-20 13:11:24] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-20 13:11:53] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-20 13:11:53] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-20 13:11:53] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-20 13:11:53] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-20 13:11:56] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:32820
+[2025-12-20 13:11:56] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
+[2025-12-20 13:12:55] [INFO] [SYSTEM] SERVER: Starting server initialization
+[2025-12-20 13:12:55] [INFO] [SYSTEM] SERVER: Database connected successfully
+[2025-12-20 13:12:55] [INFO] [SYSTEM] SERVER: Server initialized and listening on port 8888
+[2025-12-20 13:12:55] [INFO] [SYSTEM] SERVER: Exam server started successfully
+[2025-12-20 13:12:57] [INFO] [SYSTEM] CONNECTION: New connection from 127.0.0.1:55810
+[2025-12-20 13:12:58] [INFO] [anonymous] DISCONNECT: Client socket 6 disconnected
