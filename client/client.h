@@ -10,7 +10,8 @@
 /**
  * @brief Client states
  */
-typedef enum {
+typedef enum
+{
     CLIENT_DISCONNECTED,  // chưa kết nối
     CLIENT_CONNECTED,     // đã kết nối nhưng chưa đăng nhập
     CLIENT_AUTHENTICATED, // đã đăng nhập
@@ -21,12 +22,14 @@ typedef enum {
 /**
  * @brief Client structure
  */
-typedef struct {
+typedef struct
+{
     int socket_fd;
     ClientState state;
     char username[MAX_USERNAME_LEN + 1];
     char session_id[MAX_SESSION_ID_LEN];
     char current_room[MAX_ROOM_ID_LEN];
+    int is_creator; // 1 if user is room creator, 0 otherwise
 } Client;
 
 /**

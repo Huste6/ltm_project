@@ -25,8 +25,9 @@ void ui_print_menu_authenticated();
 
 /**
  * @brief Print room menu
+ * @param is_creator Whether the user is the room creator
  */
-void ui_print_menu_room();
+void ui_print_menu_room(int is_creator);
 
 /**
  * @brief Display error message

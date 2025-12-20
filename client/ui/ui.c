@@ -63,11 +63,21 @@ void ui_print_list_room_filter()
 /**
  * @brief Print room menu
  */
-void ui_print_menu_room()
+void ui_print_menu_room(int is_creator)
 {
     printf("\n=== ROOM MENU ===\n");
-    printf("1. Start Exam (creator only)\n");
-    printf("2. Leave Room\n");
+
+    if (is_creator)
+    {
+        printf("1. Start Exam (creator only)\n");
+        printf("2. Leave Room\n");
+    }
+    else
+    {
+        printf("⏳ Waiting for creator to start the exam...\n");
+        printf("1. Leave Room\n");
+    }
+
     printf("0. Back\n");
     printf("Choice: ");
 }

@@ -102,4 +102,28 @@ void handle_leave_room(Client *client);
  */
 void handle_start_exam(Client *client);
 
+/**
+ * @brief Handle GET_EXAM - fetch exam questions
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Send GET_EXAM command
+ * 2. Receive 150 DATA response with JSON
+ * 3. Display exam questions
+ */
+void handle_get_exam(Client *client);
+
+/**
+ * @brief Handle SUBMIT_EXAM - submit exam answers
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Get answers from user (comma-separated)
+ * 2. Send SUBMIT_EXAM room_id|answers
+ * 3. Receive 130 SUBMIT_OK with score|total
+ * 4. Display result and percentage
+ * 5. Update client state to AUTHENTICATED
+ */
+void handle_submit_exam(Client *client);
+
 #endif // HANDLE_H

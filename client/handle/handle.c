@@ -273,6 +273,7 @@ void handle_create_room(Client *client)
         // The server returns the room ID in resp.message and the client enters the room as creator
         snprintf(client->current_room, sizeof(client->current_room), "%s", resp.message);
         client->state = CLIENT_IN_ROOM;
+        client->is_creator = 1; // Mark as creator
 
         char msg[256];
         snprintf(msg, sizeof(msg), "Room created successfully!");
@@ -327,6 +328,7 @@ void handle_join_room(Client *client)
     {
         snprintf(client->current_room, sizeof(client->current_room), "%s", room_id);
         client->state = CLIENT_IN_ROOM;
+        client->is_creator = 0; // Mark as participant
 
         char msg[256];
         snprintf(msg, sizeof(msg), "Successfully joined room: %s", room_id);
@@ -405,7 +407,9 @@ void handle_view_result(Client *client)
         printf("Data received: %zu bytes\n\n", resp.data_length);
         printf("%s\n", resp.data);
         free(resp.data);
-    } else if (resp.code == CODE_NOT_LOGGED){
+    }
+    else if (resp.code == CODE_NOT_LOGGED)
+    {
         ui_show_error("You are not logged in.");
         return;
     }
@@ -505,6 +509,234 @@ void handle_start_exam(Client *client)
         ui_show_success("Exam started!");
         printf("Start time: %s\n", resp.message);
         ui_show_info("All participants have been notified");
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}
+
+/**
+ * @brief Handle GET_EXAM - fetch exam questions
+ */
+void handle_get_exam(Client *client)
+{
+    printf("\n=== GET EXAM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    ui_show_info("Fetching exam questions...");
+
+    // Send GET_EXAM command
+    const char *params[] = {client->current_room};
+    if (client_create_send_command(client, "GET_EXAM", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == 150) // CODE_EXAM_DATA
+    {
+        ui_show_success("Exam questions received!");
+        printf("\n========================================\n");
+        printf("EXAM QUESTIONS\n");
+        printf("========================================\n");
+        printf("%s\n", resp.data);
+        printf("========================================\n");
+        printf("\n💡 You can now answer the questions.\n");
+    }
+    else
+    {
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}
+
+/**
+ * @brief Handle submit exam
+ */
+void handle_submit_exam(Client *client)
+{
+    printf("\n=== SUBMIT EXAM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    // Get answers from user
+    char input[512];
+    printf("Enter your answers (e.g., A,B,C,D,A or A B C D A):\n");
+    printf("Answers: ");
+
+    if (fgets(input, sizeof(input), stdin) == NULL)
+    {
+        ui_show_error("Failed to read answers");
+        return;
+    }
+
+    // Remove newline
+    size_t len = strlen(input);
+    if (len > 0 && input[len - 1] == '\n')
+    {
+        input[len - 1] = '\0';
+    }
+
+    // Validate not empty
+    if (strlen(input) == 0)
+    {
+        ui_show_error("Answers cannot be empty");
+        return;
+    }
+
+    // Process input: remove spaces and convert to comma-separated format
+    char answers[512] = "";
+    int answer_count = 0;
+    char *token = strtok(input, " ,");
+
+    while (token != NULL)
+    {
+        // Validate answer is A, B, C, or D
+        if (strlen(token) == 1 && (token[0] == 'A' || token[0] == 'B' ||
+                                   token[0] == 'C' || token[0] == 'D' ||
+                                   token[0] == 'a' || token[0] == 'b' ||
+                                   token[0] == 'c' || token[0] == 'd'))
+        {
+            // Convert to uppercase
+            char upper = (token[0] >= 'a' && token[0] <= 'z') ? token[0] - 32 : token[0];
+
+            if (answer_count > 0)
+            {
+                strcat(answers, ",");
+            }
+            strncat(answers, &upper, 1);
+            answer_count++;
+        }
+        else
+        {
+            char error[256];
+            snprintf(error, sizeof(error), "Invalid answer '%s'. Use A, B, C, or D only.", token);
+            ui_show_error(error);
+            return;
+        }
+
+        token = strtok(NULL, " ,");
+    }
+
+    if (answer_count == 0)
+    {
+        ui_show_error("No valid answers found");
+        return;
+    }
+
+    ui_show_info("Submitting exam...");
+
+    // Send SUBMIT_EXAM command: room_id|answers
+    const char *params[] = {client->current_room, answers};
+    if (client_create_send_command(client, "SUBMIT_EXAM", params, 2) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == 130) // CODE_SUBMIT_OK
+    {
+        ui_show_success("Exam submitted successfully!");
+        printf("\n========================================\n");
+        printf("📊 YOUR RESULT\n");
+        printf("========================================\n");
+
+        // Parse score|total from message
+        char *score_str = strtok(resp.message, "|");
+        char *total_str = strtok(NULL, "|");
+
+        if (score_str && total_str)
+        {
+            int score = atoi(score_str);
+            int total = atoi(total_str);
+            double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
+
+            printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
+
+            if (percentage >= 80)
+            {
+                printf("🎉 Excellent! Well done!\n");
+            }
+            else if (percentage >= 60)
+            {
+                printf("👍 Good job! Keep it up!\n");
+            }
+            else if (percentage >= 40)
+            {
+                printf("📚 Not bad, but you can do better!\n");
+            }
+            else
+            {
+                printf("💪 Keep practicing!\n");
+            }
+        }
+        else
+        {
+            printf("Result: %s\n", resp.message);
+        }
+
+        printf("========================================\n");
+
+        // Update client state - exit exam
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+
+        printf("\n✅ You have been returned to the main menu.\n");
+    }
+    else if (resp.code == 131) // CODE_ALREADY_SUBMITTED
+    {
+        ui_show_info("You have already submitted this exam!");
+        printf("\n========================================\n");
+        printf("📊 YOUR PREVIOUS RESULT\n");
+        printf("========================================\n");
+
+        // Parse score|total from message
+        char *score_str = strtok(resp.message, "|");
+        char *total_str = strtok(NULL, "|");
+
+        if (score_str && total_str)
+        {
+            int score = atoi(score_str);
+            int total = atoi(total_str);
+            double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
+
+            printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
+        }
+        else
+        {
+            printf("Result: %s\n", resp.message);
+        }
+
+        printf("========================================\n");
     }
     else
     {
