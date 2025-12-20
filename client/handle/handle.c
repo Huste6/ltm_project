@@ -405,10 +405,25 @@ void handle_view_result(Client *client)
         printf("Data received: %zu bytes\n\n", resp.data_length);
         printf("%s\n", resp.data);
         free(resp.data);
+    } else if (resp.code == CODE_NOT_LOGGED){
+        ui_show_error("You are not logged in.");
+        return;
+    }
+    else if (resp.code == CODE_ROOM_IN_PROGRESS)
+    {
+        ui_show_error("The room exam is not started or still in progress.");
+        return;
+    }
+    else if (resp.code == CODE_ROOM_NOT_FOUND)
+    {
+        ui_show_error("Room not found.");
+        return;
     }
     else
     {
-        printf("\n[%d] %s\n", resp.code, resp.message);
+        char error[256];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
     }
 }
 

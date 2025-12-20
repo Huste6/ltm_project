@@ -107,7 +107,12 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
 
     // check room status = FINISHED
     int status = db_get_room_status(server->db, room_id);
-    if (status != 2)
+    if (status == -1)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
+        db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not found");
+        return;
+    } else if (status == 0 || status == 1)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
         db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not finished");
@@ -139,13 +144,6 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
     free(leaderboard_json);
     printf("[VIEW_RESULT] User '%s' viewed results for room '%s'\n", client->username, room_id);
 }
-// ==========================================
-#include "exam.h"
-#include "../server.h"
-#include "../auth/auth.h"
-#include <stdio.h>
-#include <string.h>
-#include <time.h>
 
 /**
  * @brief Broadcast message to all participants in room
