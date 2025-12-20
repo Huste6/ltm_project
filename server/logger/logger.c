@@ -69,9 +69,6 @@ const char *log_level_string(LogLevel level)
  */
 //  log_event(LOG_INFO, "john_doe", "LOGIN", "User %s logged in successfully", username);
 //  [2024-06-01 12:00:00] [INFO] [john_doe] LOGIN: User username logged in successfully
-void log_event(LogLevel level, const char *username, const char *action, const char *format, ...) {
-//  log_event(LOG_INFO, "john_doe", "LOGIN", "User logged in successfully");
-//  [2024-06-01 12:00:00] [INFO] [john_doe] LOGIN: User logged in successfully
 void log_event(LogLevel level, const char *username, const char *action, const char *format, ...)
 {
     pthread_mutex_lock(&log_mutex);

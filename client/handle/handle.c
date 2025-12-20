@@ -385,21 +385,6 @@ void handle_view_result(Client *client)
     // send command = "VIEW_RESULT room_id\n"
     const char *params[] = {room_id};
     if (client_create_send_command(client, "VIEW_RESULT", params, 1) < 0)
- * @brief Handle leave room
- */
-void handle_leave_room(Client *client)
-{
-    printf("\n=== LEAVE ROOM ===\n");
-
-    if (strlen(client->current_room) == 0)
-    {
-        ui_show_error("You are not in any room");
-        return;
-    }
-
-    // Send command
-    const char *params[] = {client->current_room};
-    if (client_send_command(client, "LEAVE_ROOM", params, 1) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -418,13 +403,44 @@ void handle_leave_room(Client *client)
         printf("\n=== EXAM RESULTS - LEADERBOARD ===\n");
         printf("Room: %s\n", room_id);
         printf("Data received: %zu bytes\n\n", resp.data_length);
-        
-        // Pretty print JSON using protocol function
-        printf("Leaderboard:\n");
-        printf("%s", resp.data);
-        printf("\n");
+        printf("%s\n", resp.data);
+        free(resp.data);
+    }
+    else
+    {
+        printf("\n[%d] %s\n", resp.code, resp.message);
+    }
+}
 
-        free(resp.data); 
+/**
+ * @brief Handle leave room
+ */
+void handle_leave_room(Client *client)
+{
+    printf("\n=== LEAVE ROOM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    // Send command
+    const char *params[] = {client->current_room};
+    if (client_create_send_command(client, "LEAVE_ROOM", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
     if (resp.code == CODE_ROOM_LEAVE_OK)
     {
         ui_show_success("Left the room successfully");
@@ -437,11 +453,9 @@ void handle_leave_room(Client *client)
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
-}
-
-/**
- * @brief Handle start exam
- */
+} /**
+   * @brief Handle start exam
+   */
 void handle_start_exam(Client *client)
 {
     printf("\n=== START EXAM ===\n");
@@ -456,7 +470,7 @@ void handle_start_exam(Client *client)
 
     // Send command
     const char *params[] = {client->current_room};
-    if (client_send_command(client, "START_EXAM", params, 1) < 0)
+    if (client_create_send_command(client, "START_EXAM", params, 1) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -483,5 +497,4 @@ void handle_start_exam(Client *client)
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
-}
 }

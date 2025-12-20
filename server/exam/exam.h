@@ -12,7 +12,7 @@ typedef struct Server Server;
  * @param server Pointer tới Server instance
  * @param client Pointer tới ClientSession
  * @param msg Message đã parse (VIEW_RESULT room_id)
- * 
+ *
  * Flow:
  * 1. Check room status = FINISHED
  * 2. Check user participated
@@ -20,15 +20,6 @@ typedef struct Server Server;
  * 4. Response: 127 DATA <length>\n<JSON leaderboard>
  */
 void handle_view_result(Server *server, ClientSession *client, Message *msg);
-
-#ifndef EXAM_H
-#define EXAM_H
-
-#include "../protocol/protocol.h"
-#include "../database/database.h"
-
-typedef struct ClientSession ClientSession;
-typedef struct Server Server;
 
 /**
  * @brief Xử lý bắt đầu bài thi (chỉ creator)

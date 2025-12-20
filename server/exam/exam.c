@@ -30,7 +30,7 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
     int status = db_get_room_status(server->db, room_id);
     if (status != 2)
     {
-        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FINISHED, room_id);
+        send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
         db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not finished");
         return;
     }
@@ -55,7 +55,7 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
     else
     {
         send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Response too large");
-    } 
+    }
 
     free(leaderboard_json);
     printf("[VIEW_RESULT] User '%s' viewed results for room '%s'\n", client->username, room_id);

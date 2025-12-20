@@ -73,13 +73,15 @@ void handle_join_room(Client *client);
 /**
  * @brief Handle view result
  * @param client Client instance
- * 
+ *
  * Flow:
  * 1. Get room_id from user
  * 2. Send VIEW_RESULT command
  * 3. Receive and display leaderboard (JSON)
  */
 void handle_view_result(Client *client);
+
+/**
  * @brief Handle leave room
  * @param client Client instance
  *
