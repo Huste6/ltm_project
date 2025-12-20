@@ -243,6 +243,10 @@ void *handle_client(void *arg)
         {
             handle_get_exam(g_server, client, &msg);
         }
+        else if (strcmp(msg.command, MSG_SUBMIT_EXAM) == 0)
+        {
+            handle_submit_exam(g_server, client, &msg);
+        }
         else if (strcmp(msg.command, "FINISH_EXAM") == 0)
         {
             handle_finish_exam(g_server, client, &msg);

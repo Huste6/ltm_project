@@ -51,8 +51,11 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 6. Check user in room
-    if (!db_is_in_room(server->db, client->username, room_id))
+    // 6. Check user in room (participant OR creator)
+    int is_participant = db_is_in_room(server->db, room_id, client->username);
+    int is_creator = db_is_room_creator(server->db, room_id, client->username);
+
+    if (!is_participant && !is_creator)
     {
         send_error_or_response(client->socket_fd, 227, "NOT_IN_ROOM");
         db_log_activity(server->db, "WARNING", client->username, "GET_EXAM", "User not in room");
@@ -112,7 +115,8 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg)
         send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
         db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not found");
         return;
-    } else if (status == 0 || status == 1)
+    }
+    else if (status == 0 || status == 1)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
         db_log_activity(server->db, "WARNING", client->username, "VIEW_RESULT", "Room not finished");
@@ -262,4 +266,179 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
 
     printf("[START_EXAM] Room '%s' started by '%s' at %s\n",
            room_id, client->username, timestamp);
+}
+
+/**
+ * @brief Handle SUBMIT_EXAM command
+ */
+void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
+{
+    // Check authentication
+    if (!check_authentication(client))
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_LOGGED, "Not authenticated");
+        return;
+    }
+
+    // Validate params (room_id|answers)
+    if (msg->param_count < 2)
+    {
+        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR,
+                               "Usage: SUBMIT_EXAM room_id|answers");
+        return;
+    }
+
+    const char *room_id = msg->params[0];
+    const char *answers = msg->params[1];
+
+    // Check room exists
+    int status = db_get_room_status(server->db, room_id);
+    if (status < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "SUBMIT_EXAM", "Room not found");
+        return;
+    }
+
+    // Check room is IN_PROGRESS
+    if (status != 1) // 1 = IN_PROGRESS
+    {
+        if (status == 0)
+        {
+            send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS,
+                                   "Room not started yet");
+        }
+        else if (status == 2)
+        {
+            send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
+        }
+        return;
+    }
+
+    // Check user in room (participant OR creator)
+    int is_participant = db_is_in_room(server->db, room_id, client->username);
+    int is_creator = db_is_room_creator(server->db, room_id, client->username);
+
+    if (!is_participant && !is_creator)
+    {
+        send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "SUBMIT_EXAM", "Not in room");
+        return;
+    }
+
+    // Check already submitted
+    if (db_check_already_submitted(server->db, room_id, client->username))
+    {
+        // Return existing score
+        char *result = db_get_exam_result(server->db, room_id, client->username);
+        if (result)
+        {
+            char response[128];
+            snprintf(response, sizeof(response), "%s", result);
+            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, response);
+            free(result);
+        }
+        else
+        {
+            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED,
+                                   "Already submitted");
+        }
+        db_log_activity(server->db, "WARNING", client->username,
+                        "SUBMIT_EXAM", "Already submitted");
+        return;
+    }
+
+    // Get correct answers and total questions
+    int score = 0;
+    int total = 0;
+    char correct_answers[256];
+
+    if (db_get_correct_answers(server->db, room_id, correct_answers, &total) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to grade");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "SUBMIT_EXAM", "Failed to get correct answers");
+        return;
+    }
+
+    // Parse and count correct answers
+    char *answer_copy = strdup(answers);
+    char *answer_tok = strtok(answer_copy, ",");
+    int idx = 0;
+
+    while (answer_tok && idx < total)
+    {
+        // Trim whitespace and compare first char (A, B, C, D)
+        while (*answer_tok == ' ')
+            answer_tok++;
+
+        if (answer_tok[0] == correct_answers[idx])
+        {
+            score++;
+        }
+        answer_tok = strtok(NULL, ",");
+        idx++;
+    }
+
+    free(answer_copy);
+
+    // Check answer count matches
+    if (idx != total)
+    {
+        char error_msg[128];
+        snprintf(error_msg, sizeof(error_msg),
+                 "Answer count mismatch: expected %d, got %d", total, idx);
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, error_msg);
+        db_log_activity(server->db, "WARNING", client->username,
+                        "SUBMIT_EXAM", error_msg);
+        return;
+    }
+
+    // TODO: Calculate time taken (compare with start_time from room)
+    int time_taken = 0;
+
+    // Save result to database
+    if (db_submit_exam(server->db, room_id, client->username, score, total,
+                       answers, time_taken) < 0)
+    {
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                               "Failed to save result");
+        db_log_activity(server->db, "ERROR", client->username,
+                        "SUBMIT_EXAM", "Database error");
+        return;
+    }
+
+    // Send response: 130 SUBMIT_OK score|total
+    char response[128];
+    snprintf(response, sizeof(response), "%d|%d", score, total);
+    send_error_or_response(client->socket_fd, CODE_SUBMIT_OK, response);
+
+    // Update client state
+    client->state = STATE_AUTHENTICATED;
+    memset(client->current_room, 0, sizeof(client->current_room));
+
+    // Log activity
+    char details[256];
+    snprintf(details, sizeof(details), "Score: %d/%d", score, total);
+    db_log_activity(server->db, "INFO", client->username,
+                    "SUBMIT_EXAM", details);
+
+    printf("[SUBMIT_EXAM] User '%s' scored %d/%d in room '%s'\n",
+           client->username, score, total, room_id);
+
+    // Check if all participants have submitted
+    if (db_check_all_submitted(server->db, room_id))
+    {
+        // Auto-finish the room
+        if (db_finish_room(server->db, room_id) == 0)
+        {
+            printf("[AUTO-FINISH] Room '%s' finished - all participants submitted\n",
+                   room_id);
+            db_log_activity(server->db, "INFO", "SYSTEM",
+                            "AUTO_FINISH_ROOM", room_id);
+        }
+    }
 }

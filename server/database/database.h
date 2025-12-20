@@ -48,5 +48,13 @@ int db_start_room(Database *db, const char *room_id);
 int db_finish_room(Database *db, const char *room_id);
 int db_is_room_creator(Database *db, const char *room_id, const char *username);
 int db_is_in_room(Database *db, const char *room_id, const char *username);
+int db_delete_room(Database *db, const char *room_id);
+
+// Submit exam operations
+int db_submit_exam(Database *db, const char *room_id, const char *username, int score, int total, const char *answers, int time_taken);
+int db_check_already_submitted(Database *db, const char *room_id, const char *username);
+char *db_get_exam_result(Database *db, const char *room_id, const char *username);
+int db_get_correct_answers(Database *db, const char *room_id, char *answers_out, int *total_out);
+int db_check_all_submitted(Database *db, const char *room_id);
 
 #endif // DATABASE_H

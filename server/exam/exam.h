@@ -55,6 +55,24 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg);
 void handle_start_exam(Server *server, ClientSession *client, Message *msg);
 
 /**
+ * @brief Xử lý nộp bài thi
+ * @param server Pointer tới Server instance
+ * @param client Pointer tới ClientSession
+ * @param msg Message đã parse (SUBMIT_EXAM room_id|answers)
+ *
+ * Flow:
+ * 1. Check user in room
+ * 2. Check chưa nộp (avoid duplicate)
+ * 3. Check time not expired (TODO)
+ * 4. Validate answer count
+ * 5. Grade exam (compare với correct_answers)
+ * 6. Save result to DB
+ * 7. Response: 130 SUBMIT_OK score|total
+ * 8. Update client state
+ */
+void handle_submit_exam(Server *server, ClientSession *client, Message *msg);
+
+/**
  * @brief Broadcast message tới tất cả participants trong room
  * @param server Server instance
  * @param room_id Room ID

@@ -242,28 +242,62 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // Leave room
-    if (db_leave_room(server->db, room_id, client->username) < 0)
+    // Check if user is creator
+    int is_creator = db_is_room_creator(server->db, room_id, client->username);
+
+    if (is_creator)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to leave room");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "LEAVE_ROOM", "Database error");
-        return;
+        // Creator is leaving - delete the entire room
+        printf("[LEAVE_ROOM] Creator '%s' is leaving room '%s' - deleting room...\n",
+               client->username, room_id);
+
+        if (db_delete_room(server->db, room_id) < 0)
+        {
+            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                                   "Failed to delete room");
+            db_log_activity(server->db, "ERROR", client->username,
+                            "LEAVE_ROOM", "Failed to delete room");
+            return;
+        }
+
+        // Update client session
+        memset(client->current_room, 0, sizeof(client->current_room));
+        client->state = STATE_AUTHENTICATED;
+
+        // Send success response
+        send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK,
+                               "Room deleted (creator left)");
+
+        db_log_activity(server->db, "INFO", client->username,
+                        "LEAVE_ROOM", "Creator left - room deleted");
+
+        printf("[LEAVE_ROOM] Room '%s' deleted successfully\n", room_id);
     }
+    else
+    {
+        // Regular participant is leaving
+        if (db_leave_room(server->db, room_id, client->username) < 0)
+        {
+            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
+                                   "Failed to leave room");
+            db_log_activity(server->db, "ERROR", client->username,
+                            "LEAVE_ROOM", "Database error");
+            return;
+        }
 
-    // Update client session
-    memset(client->current_room, 0, sizeof(client->current_room));
-    client->state = STATE_AUTHENTICATED;
+        // Update client session
+        memset(client->current_room, 0, sizeof(client->current_room));
+        client->state = STATE_AUTHENTICATED;
 
-    // Send success response
-    send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK, room_id);
+        // Send success response
+        send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK, room_id);
 
-    db_log_activity(server->db, "INFO", client->username,
-                    "LEAVE_ROOM", room_id);
+        db_log_activity(server->db, "INFO", client->username,
+                        "LEAVE_ROOM", room_id);
 
-    printf("[LEAVE_ROOM] User '%s' left room '%s'\n",
-           client->username, room_id);
+        printf("[LEAVE_ROOM] Participant '%s' left room '%s'\n",
+               client->username, room_id);
+    }
 }
 
 /**

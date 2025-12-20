@@ -206,6 +206,14 @@ int db_create_room(Database *db, const char *room_id, const char *room_name, con
 {
     pthread_mutex_lock(&db->mutex);
 
+    // Start transaction
+    if (mysql_query(db->conn, "START TRANSACTION"))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to start transaction: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
     // Insert room (max_participants will use default value from schema)
     char query1[512];
     snprintf(query1, sizeof(query1),
@@ -215,23 +223,55 @@ int db_create_room(Database *db, const char *room_id, const char *room_name, con
 
     if (mysql_query(db->conn, query1))
     {
+        fprintf(stderr, "[DB ERROR] Failed to create room: %s\n", mysql_error(db->conn));
+        mysql_query(db->conn, "ROLLBACK");
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Select random questions and insert into room_questions
+    char query2[1024];
+    snprintf(query2, sizeof(query2),
+             "INSERT INTO room_questions (room_id, question_id, question_order) "
+             "SELECT '%s', id, (@row_number := @row_number + 1) "
+             "FROM questions, (SELECT @row_number := 0) AS t "
+             "ORDER BY RAND() LIMIT %d",
+             room_id, num_questions);
+
+    if (mysql_query(db->conn, query2))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to assign questions: %s\n", mysql_error(db->conn));
+        mysql_query(db->conn, "ROLLBACK");
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
     // Creator auto joins, add user to participants table
-    char query2[512];
-    snprintf(query2, sizeof(query2),
+    char query3[512];
+    snprintf(query3, sizeof(query3),
              "INSERT INTO participants (room_id, username) VALUES ('%s', '%s')",
              room_id, creator);
 
-    if (mysql_query(db->conn, query2))
+    if (mysql_query(db->conn, query3))
     {
+        fprintf(stderr, "[DB ERROR] Failed to add creator as participant: %s\n", mysql_error(db->conn));
+        mysql_query(db->conn, "ROLLBACK");
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Commit transaction
+    if (mysql_query(db->conn, "COMMIT"))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to commit transaction: %s\n", mysql_error(db->conn));
+        mysql_query(db->conn, "ROLLBACK");
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
     pthread_mutex_unlock(&db->mutex);
+
+    printf("[DB] Room '%s' created with %d random questions assigned\n", room_id, num_questions);
     return 0;
 }
 
@@ -541,13 +581,21 @@ char *db_get_exam_questions(Database *db, const char *room_id)
             strcat(json, ",\n");
         first = 0;
 
-        // Build options array: ["option_a", "option_b", "option_c", "option_d"]
-        char options_str[512];
+        // Escape special characters in options for JSON
+        char opt_a[256], opt_b[256], opt_c[256], opt_d[256];
+        snprintf(opt_a, sizeof(opt_a), "A. %s", row[2]);
+        snprintf(opt_b, sizeof(opt_b), "B. %s", row[3]);
+        snprintf(opt_c, sizeof(opt_c), "C. %s", row[4]);
+        snprintf(opt_d, sizeof(opt_d), "D. %s", row[5]);
+
+        // Build options array with actual content
+        char options_str[2048];
         snprintf(options_str, sizeof(options_str),
-                 "[\"A\",\"B\",\"C\",\"D\"]");
+                 "[\"%s\",\"%s\",\"%s\",\"%s\"]",
+                 opt_a, opt_b, opt_c, opt_d);
 
         // Build question entry (WITHOUT correct_answer!)
-        char entry[1024];
+        char entry[4096];
         snprintf(entry, sizeof(entry),
                  "    {\"question_id\":%s,\"content\":\"%s\",\"options\":%s}",
                  row[0], // question_id
@@ -626,6 +674,12 @@ int db_finish_room(Database *db, const char *room_id)
     int result = mysql_query(db->conn, query);
 
     pthread_mutex_unlock(&db->mutex);
+
+    if (result == 0)
+    {
+        printf("[DB] Room '%s' marked as FINISHED\n", room_id);
+    }
+
     return result == 0 ? 0 : -1;
 }
 
@@ -703,4 +757,293 @@ int db_is_in_room(Database *db, const char *room_id, const char *username)
     pthread_mutex_unlock(&db->mutex);
 
     return in_room;
+}
+
+/**
+ * @brief Delete a room and all its related data
+ * @param db Pointer to Database
+ * @param room_id Room ID to delete
+ * @return 0 on success, -1 on error
+ *
+ * NOTE: This will cascade delete:
+ * - All participants in room_participants (ON DELETE CASCADE)
+ * - All room_questions (ON DELETE CASCADE)
+ * - All exam_results (ON DELETE CASCADE)
+ */
+int db_delete_room(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query),
+             "DELETE FROM rooms WHERE room_id='%s'",
+             room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to delete room '%s': %s\n",
+                room_id, mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    int affected = mysql_affected_rows(db->conn);
+    pthread_mutex_unlock(&db->mutex);
+
+    if (affected == 0)
+    {
+        fprintf(stderr, "[DB WARNING] Room '%s' not found for deletion\n", room_id);
+        return -1;
+    }
+
+    printf("[DB] Room '%s' deleted successfully (cascaded to participants, questions, results)\n",
+           room_id);
+    return 0;
+}
+
+// ==========================================
+// SUBMIT EXAM OPERATIONS
+// ==========================================
+
+/**
+ * @brief Get correct answers for a room
+ * @param db Database pointer
+ * @param room_id Room ID
+ * @param answers_out Buffer to store answers (e.g., "ABCDABCD...")
+ * @param total_out Pointer to store total number of questions
+ * @return 0 on success, -1 on error
+ */
+int db_get_correct_answers(Database *db, const char *room_id, char *answers_out, int *total_out)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[1024];
+    snprintf(query, sizeof(query),
+             "SELECT q.correct_answer FROM room_questions rq "
+             "JOIN questions q ON rq.question_id = q.id "
+             "WHERE rq.room_id = '%s' ORDER BY rq.question_order",
+             room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to get correct answers: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        fprintf(stderr, "[DB ERROR] Failed to store result: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row;
+    int count = 0;
+    while ((row = mysql_fetch_row(result)))
+    {
+        answers_out[count++] = row[0][0]; // Get first character (A, B, C, or D)
+    }
+    answers_out[count] = '\0';
+
+    *total_out = count;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return 0;
+}
+
+/**
+ * @brief Submit exam answers and calculate score
+ * @param db Database pointer
+ * @param room_id Room ID
+ * @param username Username
+ * @param score Score achieved
+ * @param total Total questions
+ * @param answers User's answers (comma-separated: A,B,C,D...)
+ * @param time_taken Time taken in seconds
+ * @return 0 on success, -1 on error
+ */
+int db_submit_exam(Database *db, const char *room_id, const char *username,
+                   int score, int total, const char *answers, int time_taken)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Escape the answers string to prevent SQL injection
+    char escaped_answers[2048];
+    mysql_real_escape_string(db->conn, escaped_answers, answers, strlen(answers));
+
+    char query[2048];
+    snprintf(query, sizeof(query),
+             "INSERT INTO exam_results (room_id, username, score, total_questions, "
+             "answers, time_taken_seconds) VALUES ('%s', '%s', %d, %d, '%s', %d)",
+             room_id, username, score, total, escaped_answers, time_taken);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to submit exam: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&db->mutex);
+    printf("[DB] Exam submitted for user '%s' in room '%s': %d/%d\n",
+           username, room_id, score, total);
+
+    return 0;
+}
+
+/**
+ * @brief Check if user already submitted exam for this room
+ * @param db Database pointer
+ * @param room_id Room ID
+ * @param username Username
+ * @return 1 if submitted, 0 if not
+ */
+int db_check_already_submitted(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM exam_results WHERE room_id='%s' AND username='%s'",
+             room_id, username);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to check submission: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int submitted = row ? (atoi(row[0]) > 0) : 0;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return submitted;
+}
+
+/**
+ * @brief Get exam result for user
+ * @param db Database pointer
+ * @param room_id Room ID
+ * @param username Username
+ * @return String with score (e.g., "18|20"), must be freed, NULL on error
+ */
+char *db_get_exam_result(Database *db, const char *room_id, const char *username)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT score, total_questions FROM exam_results "
+             "WHERE room_id='%s' AND username='%s'",
+             room_id, username);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to get result: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    char *result_str = NULL;
+
+    if (row)
+    {
+        result_str = malloc(64);
+        snprintf(result_str, 64, "%s|%s", row[0], row[1]);
+    }
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return result_str;
+}
+
+/**
+ * @brief Check if all participants in a room have submitted their exams
+ * @param db Database pointer
+ * @param room_id Room ID
+ * @return 1 if all submitted, 0 otherwise
+ */
+int db_check_all_submitted(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Get total participants count
+    char query1[512];
+    snprintf(query1, sizeof(query1),
+             "SELECT COUNT(*) FROM participants WHERE room_id='%s'",
+             room_id);
+
+    if (mysql_query(db->conn, query1))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result1 = mysql_store_result(db->conn);
+    if (!result1)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row1 = mysql_fetch_row(result1);
+    int total_participants = row1 ? atoi(row1[0]) : 0;
+    mysql_free_result(result1);
+
+    if (total_participants == 0)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    // Get total submissions count
+    char query2[512];
+    snprintf(query2, sizeof(query2),
+             "SELECT COUNT(*) FROM exam_results WHERE room_id='%s'",
+             room_id);
+
+    if (mysql_query(db->conn, query2))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result2 = mysql_store_result(db->conn);
+    if (!result2)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row2 = mysql_fetch_row(result2);
+    int total_submissions = row2 ? atoi(row2[0]) : 0;
+    mysql_free_result(result2);
+
+    pthread_mutex_unlock(&db->mutex);
+
+    // All submitted if counts match
+    return (total_submissions >= total_participants);
 }
