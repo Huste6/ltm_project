@@ -85,6 +85,18 @@ void ui_print_menu_room(int is_creator)
 }
 
 /**
+ * @brief Print exam menu
+ */
+void ui_print_menu_exam()
+{
+    printf("\n=== EXAM IN PROGRESS ===\n");
+    printf("1. Get Exam Questions\n");
+    printf("2. Submit Exam\n");
+    printf("0. Exit Exam\n");
+    printf("Choice: ");
+}
+
+/**
  * @brief Show error message
  */
 void ui_show_error(const char *message)

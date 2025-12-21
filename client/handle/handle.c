@@ -464,7 +464,8 @@ void handle_leave_room(Client *client)
     {
         ui_show_success("Left the room successfully");
         client->state = CLIENT_AUTHENTICATED;
-        memset(client->current_room, 0, sizeof(client->current_room));
+        memset(client->current_room, 0, sizeof(client->current_room)); // Clear current room
+        client->is_creator = 0;                                        // Reset creator flag
     }
     else
     {
@@ -557,7 +558,7 @@ void handle_get_exam(Client *client)
         printf("========================================\n");
         printf("%s\n", resp.data);
         printf("========================================\n");
-        printf("\n💡 You can now answer the questions.\n");
+        printf("\nYou can now answer the questions. Choose your answers and submit in the next step.\n");
     }
     else
     {
@@ -608,7 +609,7 @@ void handle_submit_exam(Client *client)
     // Process input: remove spaces and convert to comma-separated format
     char answers[512] = "";
     int answer_count = 0;
-    char *token = strtok(input, " ,");
+    char *token = strtok(input, " ,"); // Split by space or comma
 
     while (token != NULL)
     {

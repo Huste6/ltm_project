@@ -393,8 +393,7 @@ int db_get_room_status(Database *db, const char *room_id)
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
-    snprintf(query, sizeof(query),
-             "SELECT status FROM rooms WHERE room_id='%s'", room_id);
+    snprintf(query, sizeof(query), "SELECT status FROM rooms WHERE room_id='%s'", room_id);
 
     if (mysql_query(db->conn, query))
     {
@@ -588,19 +587,22 @@ char *db_get_exam_questions(Database *db, const char *room_id)
         snprintf(opt_c, sizeof(opt_c), "C. %s", row[4]);
         snprintf(opt_d, sizeof(opt_d), "D. %s", row[5]);
 
-        // Build options array with actual content
-        char options_str[2048];
-        snprintf(options_str, sizeof(options_str),
-                 "[\"%s\",\"%s\",\"%s\",\"%s\"]",
-                 opt_a, opt_b, opt_c, opt_d);
-
-        // Build question entry (WITHOUT correct_answer!)
+        // Build question entry with proper formatting
         char entry[4096];
         snprintf(entry, sizeof(entry),
-                 "    {\"question_id\":%s,\"content\":\"%s\",\"options\":%s}",
+                 "    {\n"
+                 "      \"question_id\": %s,\n"
+                 "      \"content\": \"%s\",\n"
+                 "      \"options\": [\n"
+                 "        \"%s\",\n"
+                 "        \"%s\",\n"
+                 "        \"%s\",\n"
+                 "        \"%s\"\n"
+                 "      ]\n"
+                 "    }",
                  row[0], // question_id
                  row[1], // question_text (content)
-                 options_str);
+                 opt_a, opt_b, opt_c, opt_d);
 
         strcat(json, entry);
     }
@@ -625,9 +627,7 @@ int db_leave_room(Database *db, const char *room_id, const char *username)
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
-    snprintf(query, sizeof(query),
-             "DELETE FROM participants WHERE room_id='%s' AND username='%s'",
-             room_id, username);
+    snprintf(query, sizeof(query), "DELETE FROM participants WHERE room_id='%s' AND username='%s'", room_id, username);
 
     int result = mysql_query(db->conn, query);
 
@@ -646,9 +646,9 @@ int db_start_room(Database *db, const char *room_id)
     pthread_mutex_lock(&db->mutex);
 
     char query[512];
-    snprintf(query, sizeof(query),
-             "UPDATE rooms SET status='IN_PROGRESS', start_time=NOW() WHERE room_id='%s'",
-             room_id);
+
+    // Update room status to IN_PROGRESS and set start_time to NOW()
+    snprintf(query, sizeof(query), "UPDATE rooms SET status='IN_PROGRESS', start_time=NOW() WHERE room_id='%s'", room_id);
 
     int result = mysql_query(db->conn, query);
 
@@ -695,9 +695,7 @@ int db_is_room_creator(Database *db, const char *room_id, const char *username)
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
-    snprintf(query, sizeof(query),
-             "SELECT COUNT(*) FROM rooms WHERE room_id='%s' AND creator='%s'",
-             room_id, username);
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM rooms WHERE room_id='%s' AND creator='%s'", room_id, username);
 
     if (mysql_query(db->conn, query))
     {
@@ -733,9 +731,7 @@ int db_is_in_room(Database *db, const char *room_id, const char *username)
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
-    snprintf(query, sizeof(query),
-             "SELECT COUNT(*) FROM participants WHERE room_id='%s' AND username='%s'",
-             room_id, username);
+    snprintf(query, sizeof(query), "SELECT COUNT(*) FROM participants WHERE room_id='%s' AND username='%s'", room_id, username);
 
     if (mysql_query(db->conn, query))
     {
@@ -750,8 +746,8 @@ int db_is_in_room(Database *db, const char *room_id, const char *username)
         return 0;
     }
 
-    MYSQL_ROW row = mysql_fetch_row(result);
-    int in_room = row ? (atoi(row[0]) > 0) : 0;
+    MYSQL_ROW row = mysql_fetch_row(result);    // Fetch the first row from result, which contains the count
+    int in_room = row ? (atoi(row[0]) > 0) : 0; // If count > 0, user is in room
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
@@ -775,29 +771,25 @@ int db_delete_room(Database *db, const char *room_id)
     pthread_mutex_lock(&db->mutex);
 
     char query[256];
-    snprintf(query, sizeof(query),
-             "DELETE FROM rooms WHERE room_id='%s'",
-             room_id);
+    snprintf(query, sizeof(query), "DELETE FROM rooms WHERE room_id='%s'", room_id);
 
     if (mysql_query(db->conn, query))
     {
-        fprintf(stderr, "[DB ERROR] Failed to delete room '%s': %s\n",
-                room_id, mysql_error(db->conn));
+        fprintf(stderr, "[DB ERROR] Failed to delete room '%s': %s\n", room_id, mysql_error(db->conn));
         pthread_mutex_unlock(&db->mutex);
         return -1;
     }
 
-    int affected = mysql_affected_rows(db->conn);
+    int affected = mysql_affected_rows(db->conn); // Check if any row was deleted
     pthread_mutex_unlock(&db->mutex);
 
-    if (affected == 0)
+    if (affected == 0) // No room found with given ID
     {
         fprintf(stderr, "[DB WARNING] Room '%s' not found for deletion\n", room_id);
         return -1;
     }
 
-    printf("[DB] Room '%s' deleted successfully (cascaded to participants, questions, results)\n",
-           room_id);
+    printf("[DB] Room '%s' deleted successfully (cascaded to participants, questions, results)\n", room_id);
     return 0;
 }
 
@@ -866,8 +858,7 @@ int db_get_correct_answers(Database *db, const char *room_id, char *answers_out,
  * @param time_taken Time taken in seconds
  * @return 0 on success, -1 on error
  */
-int db_submit_exam(Database *db, const char *room_id, const char *username,
-                   int score, int total, const char *answers, int time_taken)
+int db_submit_exam(Database *db, const char *room_id, const char *username, int score, int total, const char *answers, int time_taken)
 {
     pthread_mutex_lock(&db->mutex);
 
@@ -889,8 +880,7 @@ int db_submit_exam(Database *db, const char *room_id, const char *username,
     }
 
     pthread_mutex_unlock(&db->mutex);
-    printf("[DB] Exam submitted for user '%s' in room '%s': %d/%d\n",
-           username, room_id, score, total);
+    printf("[DB] Exam submitted for user '%s' in room '%s': %d/%d\n", username, room_id, score, total);
 
     return 0;
 }

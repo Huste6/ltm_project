@@ -10,14 +10,14 @@
  */
 void handle_get_exam(Server *server, ClientSession *client, Message *msg)
 {
-    // 1. Check authentication
+    // Check authentication
     if (!check_authentication(client))
     {
         send_error_or_response(client->socket_fd, 221, "NOT_LOGGED");
         return;
     }
 
-    // 2. Validate params
+    // Validate params
     if (msg->param_count < 1)
     {
         send_error_or_response(client->socket_fd, 300, "BAD_COMMAND");
@@ -26,7 +26,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
 
     const char *room_id = msg->params[0];
 
-    // 3. Check room exists
+    // Check room exists
     int status = db_get_room_status(server->db, room_id);
     if (status < 0)
     {
@@ -35,7 +35,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 4. Check room NOT_STARTED (status 0 = NOT_STARTED)
+    // Check room NOT_STARTED (status 0 = NOT_STARTED)
     if (status == 0)
     {
         send_error_or_response(client->socket_fd, 224, "ROOM_NOT_STARTED");
@@ -43,7 +43,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 5. Check room FINISHED (status 2 = FINISHED)
+    // Check room FINISHED (status 2 = FINISHED)
     if (status == 2)
     {
         send_error_or_response(client->socket_fd, 225, "ROOM_FINISHED");
@@ -51,7 +51,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 6. Check user in room (participant OR creator)
+    // Check user in room (participant OR creator)
     int is_participant = db_is_in_room(server->db, room_id, client->username);
     int is_creator = db_is_room_creator(server->db, room_id, client->username);
 
@@ -62,7 +62,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 7. Get exam questions from DB
+    // Get exam questions from DB
     char *exam_json = db_get_exam_questions(server->db, room_id);
     if (!exam_json)
     {
@@ -71,7 +71,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // 8. Send response: 150 DATA <length>\n<JSON>
+    // Send response: 150 DATA <length>\n<JSON>
     char buffer[1024 * 1024]; // 1MB buffer for exam data
     int len = create_data_message(150, exam_json, strlen(exam_json), buffer, sizeof(buffer));
     if (len > 0)
@@ -184,22 +184,19 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
     // Validate params
     if (msg->param_count < 1)
     {
-        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR,
-                               "Usage: START_EXAM room_id");
+        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Usage: START_EXAM room_id");
         return;
     }
 
     const char *room_id = msg->params[0];
 
-    // Check room status FIRST (to verify room exists)
     int status = db_get_room_status(server->db, room_id);
 
     // Check if room exists (status < 0 means not found)
     if (status < 0)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "START_EXAM", "Room not found");
+        db_log_activity(server->db, "WARNING", client->username, "START_EXAM", "Room not found");
         return;
     }
 
@@ -207,40 +204,42 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
     if (!db_is_room_creator(server->db, room_id, client->username))
     {
         send_error_or_response(client->socket_fd, CODE_NOT_CREATOR, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "START_EXAM", "Not creator");
+        db_log_activity(server->db, "WARNING", client->username, "START_EXAM", "Not creator");
         return;
     }
 
     // Check room not started (status must be 0 = NOT_STARTED)
     if (status != 0) // 1 = IN_PROGRESS, 2 = FINISHED
     {
-        send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "START_EXAM", "Room already started");
+        if (status == 1)
+        {
+            send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, "Exam is already in progress");
+            db_log_activity(server->db, "WARNING", client->username, "START_EXAM", "Room already in progress");
+        }
+        else if (status == 2)
+        {
+            send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, "Exam has already finished");
+            db_log_activity(server->db, "WARNING", client->username, "START_EXAM", "Room already finished");
+        }
         return;
     }
 
     // Start room (update status to IN_PROGRESS)
     if (db_start_room(server->db, room_id) < 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to start exam");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "START_EXAM", "Database error");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to start exam");
+        db_log_activity(server->db, "ERROR", client->username, "START_EXAM", "Database error");
         return;
     }
 
     // Get start time
     time_t now = time(NULL);
     char timestamp[64];
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S",
-             localtime(&now));
+    strftime(timestamp, sizeof(timestamp), "%Y-%m-%dT%H:%M:%S", localtime(&now));
 
     // Prepare broadcast message
     char broadcast_msg[256];
-    snprintf(broadcast_msg, sizeof(broadcast_msg), "125 START_OK %s|%s\n",
-             room_id, timestamp);
+    snprintf(broadcast_msg, sizeof(broadcast_msg), "125 START_OK %s|%s\n", room_id, timestamp);
 
     // Broadcast to all participants
     printf("[START_EXAM] Broadcasting to room '%s'...\n", room_id);
@@ -250,8 +249,7 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
     pthread_mutex_lock(&server->clients_mutex);
     for (int i = 0; i < MAX_CLIENTS; i++)
     {
-        if (server->clients[i].active &&
-            strcmp(server->clients[i].current_room, room_id) == 0)
+        if (server->clients[i].active && strcmp(server->clients[i].current_room, room_id) == 0)
         {
             server->clients[i].state = STATE_IN_EXAM;
         }
@@ -261,11 +259,9 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
     // Log activity
     char details[256];
     snprintf(details, sizeof(details), "Exam started at %s", timestamp);
-    db_log_activity(server->db, "INFO", client->username,
-                    "START_EXAM", details);
+    db_log_activity(server->db, "INFO", client->username, "START_EXAM", details);
 
-    printf("[START_EXAM] Room '%s' started by '%s' at %s\n",
-           room_id, client->username, timestamp);
+    printf("[START_EXAM] Room '%s' started by '%s' at %s\n", room_id, client->username, timestamp);
 }
 
 /**

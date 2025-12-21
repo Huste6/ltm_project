@@ -124,7 +124,6 @@ int main()
                             printf("Loading exam questions...\n");
 
                             client.state = CLIENT_IN_EXAM;
-                            handle_get_exam(&client);
                             break;
                         }
                     }
@@ -169,11 +168,7 @@ int main()
             }
             break;
         case CLIENT_IN_EXAM:
-            printf("\n=== EXAM IN PROGRESS ===\n");
-            printf("1. Get Exam Questions\n");
-            printf("2. Submit Exam\n");
-            printf("0. Exit Exam\n");
-            printf("Choice: ");
+            ui_print_menu_exam();
             scanf("%d", &choice);
             getchar();
 

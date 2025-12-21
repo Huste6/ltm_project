@@ -226,8 +226,7 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
     // Validate params
     if (msg->param_count < 1)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "Usage: LEAVE_ROOM room_id");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "Usage: LEAVE_ROOM room_id");
         return;
     }
 
@@ -237,8 +236,7 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
     if (!db_is_in_room(server->db, room_id, client->username))
     {
         send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "LEAVE_ROOM", "Not in room");
+        db_log_activity(server->db, "WARNING", client->username, "LEAVE_ROOM", "Not in room");
         return;
     }
 
@@ -248,15 +246,12 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
     if (is_creator)
     {
         // Creator is leaving - delete the entire room
-        printf("[LEAVE_ROOM] Creator '%s' is leaving room '%s' - deleting room...\n",
-               client->username, room_id);
+        printf("[LEAVE_ROOM] Creator '%s' is leaving room '%s' - deleting room...\n", client->username, room_id);
 
         if (db_delete_room(server->db, room_id) < 0)
         {
-            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                                   "Failed to delete room");
-            db_log_activity(server->db, "ERROR", client->username,
-                            "LEAVE_ROOM", "Failed to delete room");
+            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to delete room");
+            db_log_activity(server->db, "ERROR", client->username, "LEAVE_ROOM", "Failed to delete room");
             return;
         }
 
@@ -265,11 +260,9 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
         client->state = STATE_AUTHENTICATED;
 
         // Send success response
-        send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK,
-                               "Room deleted (creator left)");
+        send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK, "Room deleted (creator left)");
 
-        db_log_activity(server->db, "INFO", client->username,
-                        "LEAVE_ROOM", "Creator left - room deleted");
+        db_log_activity(server->db, "INFO", client->username, "LEAVE_ROOM", "Creator left - room deleted");
 
         printf("[LEAVE_ROOM] Room '%s' deleted successfully\n", room_id);
     }
@@ -278,10 +271,8 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
         // Regular participant is leaving
         if (db_leave_room(server->db, room_id, client->username) < 0)
         {
-            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                                   "Failed to leave room");
-            db_log_activity(server->db, "ERROR", client->username,
-                            "LEAVE_ROOM", "Database error");
+            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to leave room");
+            db_log_activity(server->db, "ERROR", client->username, "LEAVE_ROOM", "Database error");
             return;
         }
 
@@ -292,11 +283,9 @@ void handle_leave_room(Server *server, ClientSession *client, Message *msg)
         // Send success response
         send_error_or_response(client->socket_fd, CODE_ROOM_LEAVE_OK, room_id);
 
-        db_log_activity(server->db, "INFO", client->username,
-                        "LEAVE_ROOM", room_id);
+        db_log_activity(server->db, "INFO", client->username, "LEAVE_ROOM", room_id);
 
-        printf("[LEAVE_ROOM] Participant '%s' left room '%s'\n",
-               client->username, room_id);
+        printf("[LEAVE_ROOM] Participant '%s' left room '%s'\n", client->username, room_id);
     }
 }
 
@@ -315,8 +304,7 @@ void handle_finish_exam(Server *server, ClientSession *client, Message *msg)
     // Validate params
     if (msg->param_count < 1)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS,
-                               "Usage: FINISH_EXAM room_id");
+        send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, "Usage: FINISH_EXAM room_id");
         return;
     }
 

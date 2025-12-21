@@ -29,6 +29,8 @@ void ui_print_menu_authenticated();
  */
 void ui_print_menu_room(int is_creator);
 
+void ui_print_menu_exam();
+
 /**
  * @brief Display error message
  * @param message Error message
