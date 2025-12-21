@@ -713,7 +713,7 @@ int db_is_room_creator(Database *db, const char *room_id, const char *username)
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    int is_creator = row ? (atoi(row[0]) > 0) : 0;
+    int is_creator = row ? (atoi(row[0]) > 0) : 0; // If count > 0, user is creator
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);

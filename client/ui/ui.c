@@ -49,6 +49,9 @@ void ui_print_menu_authenticated()
     printf("Choice: ");
 }
 
+/**
+ * @brief Print list room filter menu
+ */
 void ui_print_list_room_filter()
 {
     printf("\n=== LIST ROOMS ===\n");

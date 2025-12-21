@@ -79,60 +79,62 @@ int main()
             }
             break;
         case CLIENT_IN_ROOM:
-            // For participants: Continuously poll for broadcast
+            fd_set readfds; // select descriptor set
+            int maxfd;
+            char buffer[BUFFER_SIZE];
+
+            // PARTICIPANT (NOT CREATOR)
             if (!client.is_creator)
             {
-                while (1)
+                // Print room menu once
+                ui_print_menu_room(0);
+                printf("⏳ Waiting for creator to start the exam...\n");
+
+                while (client.state == CLIENT_IN_ROOM)
                 {
-                    ui_print_menu_room(client.is_creator);
+                    FD_ZERO(&readfds);                  // clear fd_set
+                    FD_SET(client.socket_fd, &readfds); // socket from server
+                    FD_SET(0, &readfds);                // stdin (keyboard)
 
-                    fd_set readfds;
-                    struct timeval tv;
-                    FD_ZERO(&readfds);
-                    FD_SET(client.socket_fd, &readfds);
-                    tv.tv_sec = 5; // 5 second timeout - less frequent polling
-                    tv.tv_usec = 0;
+                    maxfd = client.socket_fd; // socket fd is always > 0
 
-                    int ready = select(client.socket_fd + 1, &readfds, NULL, NULL, &tv);
-                    if (ready > 0)
+                    // BLOCK until an event occurs
+                    if (select(maxfd + 1, &readfds, NULL, NULL, NULL) < 0)
                     {
-                        // There's data available - might be a broadcast
-                        char buffer[BUFFER_SIZE];
-                        int bytes = recv(client.socket_fd, buffer, sizeof(buffer) - 1, MSG_PEEK);
-                        if (bytes > 0)
+                        perror("select");
+                        break;
+                    }
+
+                    // ===== EVENT: SERVER MESSAGE =====
+                    if (FD_ISSET(client.socket_fd, &readfds))
+                    {
+                        int bytes = recv(client.socket_fd, buffer, sizeof(buffer) - 1, 0);
+                        if (bytes <= 0)
                         {
-                            buffer[bytes] = '\0';
-                            // Check if it's a START_OK broadcast
-                            if (strstr(buffer, "125 START_OK") != NULL)
-                            {
-                                // Consume the message
-                                recv(client.socket_fd, buffer, sizeof(buffer) - 1, 0);
-                                printf("\n🎉 Creator has started the exam!\n");
-                                client.state = CLIENT_IN_EXAM;
+                            ui_show_error("Server disconnected");
+                            client.state = CLIENT_DISCONNECTED;
+                            break;
+                        }
 
-                                // AUTO GET_EXAM - theo đặc tả bắt buộc
-                                printf("📝 Loading exam questions...\n");
-                                handle_get_exam(&client);
+                        buffer[bytes] = '\0';
 
-                                ui_wait_enter();
-                                break; // Exit polling loop
-                            }
+                        if (strstr(buffer, "125 START_OK") != NULL)
+                        {
+                            printf("\n🎉 Creator has started the exam!\n");
+                            printf("📝 Loading exam questions...\n");
+
+                            client.state = CLIENT_IN_EXAM;
+                            handle_get_exam(&client);
+                            break;
                         }
                     }
 
-                    // Check if stdin has input (non-blocking)
-                    fd_set stdin_fds;
-                    struct timeval stdin_tv;
-                    FD_ZERO(&stdin_fds);
-                    FD_SET(STDIN_FILENO, &stdin_fds);
-                    stdin_tv.tv_sec = 0;
-                    stdin_tv.tv_usec = 0;
-
-                    if (select(STDIN_FILENO + 1, &stdin_fds, NULL, NULL, &stdin_tv) > 0)
+                    // ===== EVENT: USER INPUT =====
+                    if (FD_ISSET(0, &readfds))
                     {
-                        // User pressed something, read it
+                        int choice;
                         scanf("%d", &choice);
-                        getchar();
+                        getchar(); // consume '\n'
 
                         switch (choice)
                         {
@@ -144,20 +146,14 @@ int main()
                             break;
                         default:
                             ui_show_error("Invalid choice!");
-                            continue; // Continue polling loop
+                            break;
                         }
-                        break; // Exit polling loop after processing choice
                     }
-
-                    // Status update every 5 seconds (less intrusive)
-                    printf("\r%-60s", "⏳ Waiting for creator to start... (Press 1 to leave, 0 to back)");
-                    fflush(stdout);
                 }
             }
             else
             {
-                // Creator menu (normal behavior)
-                ui_print_menu_room(client.is_creator);
+                ui_print_menu_room(1);
                 scanf("%d", &choice);
                 getchar();
 
