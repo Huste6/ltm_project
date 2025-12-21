@@ -88,7 +88,7 @@ int main()
             {
                 // Print room menu once
                 ui_print_menu_room(0);
-                printf("⏳ Waiting for creator to start the exam...\n");
+                printf("Waiting for creator to start the exam...\n");
 
                 while (client.state == CLIENT_IN_ROOM)
                 {
@@ -120,8 +120,8 @@ int main()
 
                         if (strstr(buffer, "125 START_OK") != NULL)
                         {
-                            printf("\n🎉 Creator has started the exam!\n");
-                            printf("📝 Loading exam questions...\n");
+                            printf("\nCreator has started the exam!\n");
+                            printf("Loading exam questions...\n");
 
                             client.state = CLIENT_IN_EXAM;
                             handle_get_exam(&client);
@@ -140,9 +140,6 @@ int main()
                         {
                         case 1:
                             handle_leave_room(&client);
-                            break;
-                        case 0:
-                            client.state = CLIENT_AUTHENTICATED;
                             break;
                         default:
                             ui_show_error("Invalid choice!");
@@ -164,9 +161,6 @@ int main()
                     break;
                 case 2:
                     handle_leave_room(&client);
-                    break;
-                case 0:
-                    client.state = CLIENT_AUTHENTICATED;
                     break;
                 default:
                     ui_show_error("Invalid choice!");

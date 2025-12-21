@@ -81,7 +81,6 @@ void ui_print_menu_room(int is_creator)
         printf("1. Leave Room\n");
     }
 
-    printf("0. Back\n");
     printf("Choice: ");
 }
 
