@@ -66,19 +66,4 @@ void handle_join_room(Server *server, ClientSession *client, Message *msg);
  */
 void handle_leave_room(Server *server, ClientSession *client, Message *msg);
 
-/**
- * @brief Handle finishing an exam in a room
- * @param server Pointer to Server instance
- * @param client Pointer to ClientSession
- * @param msg Message parsed (FINISH_EXAM room_id)
- *
- * Flow:
- * 1. Check authentication
- * 2. Check user is creator of room
- * 3. Update room status to FINISHED
- * 4. Calculate scores for all participants
- * 5. Response: 125 EXAM_FINISHED
- */
-void handle_finish_exam(Server *server, ClientSession *client, Message *msg);
-
 #endif // ROOM_H

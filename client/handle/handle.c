@@ -668,7 +668,7 @@ void handle_submit_exam(Client *client)
     {
         ui_show_success("Exam submitted successfully!");
         printf("\n========================================\n");
-        printf("📊 YOUR RESULT\n");
+        printf("YOUR RESULT\n");
         printf("========================================\n");
 
         // Parse score|total from message
@@ -685,19 +685,19 @@ void handle_submit_exam(Client *client)
 
             if (percentage >= 80)
             {
-                printf("🎉 Excellent! Well done!\n");
+                printf("Excellent! Well done!\n");
             }
             else if (percentage >= 60)
             {
-                printf("👍 Good job! Keep it up!\n");
+                printf("Good job! Keep it up!\n");
             }
             else if (percentage >= 40)
             {
-                printf("📚 Not bad, but you can do better!\n");
+                printf("Not bad, but you can do better!\n");
             }
             else
             {
-                printf("💪 Keep practicing!\n");
+                printf("Keep practicing!\n");
             }
         }
         else
@@ -711,13 +711,13 @@ void handle_submit_exam(Client *client)
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room));
 
-        printf("\n✅ You have been returned to the main menu.\n");
+        printf("\nYou have been returned to the main menu.\n");
     }
     else if (resp.code == 131) // CODE_ALREADY_SUBMITTED
     {
         ui_show_info("You have already submitted this exam!");
         printf("\n========================================\n");
-        printf("📊 YOUR PREVIOUS RESULT\n");
+        printf("YOUR PREVIOUS RESULT\n");
         printf("========================================\n");
 
         // Parse score|total from message

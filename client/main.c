@@ -88,7 +88,6 @@ int main()
             {
                 // Print room menu once
                 ui_print_menu_room(0);
-                printf("Waiting for creator to start the exam...\n");
 
                 while (client.state == CLIENT_IN_ROOM)
                 {

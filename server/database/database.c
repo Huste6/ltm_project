@@ -804,6 +804,10 @@ int db_delete_room(Database *db, const char *room_id)
  * @param answers_out Buffer to store answers (e.g., "ABCDABCD...")
  * @param total_out Pointer to store total number of questions
  * @return 0 on success, -1 on error
+ * Flow:
+ * 1. Query room_questions joined with questions to get correct answers
+ * 2. Store answers in answers_out as a string of characters
+ * 3. Set total_out to number of questions
  */
 int db_get_correct_answers(Database *db, const char *room_id, char *answers_out, int *total_out)
 {
@@ -837,9 +841,9 @@ int db_get_correct_answers(Database *db, const char *room_id, char *answers_out,
     {
         answers_out[count++] = row[0][0]; // Get first character (A, B, C, or D)
     }
-    answers_out[count] = '\0';
+    answers_out[count] = '\0'; // Null-terminate the string
 
-    *total_out = count;
+    *total_out = count; // Set total number of questions
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
@@ -956,7 +960,7 @@ char *db_get_exam_result(Database *db, const char *room_id, const char *username
     }
 
     MYSQL_ROW row = mysql_fetch_row(result);
-    char *result_str = NULL;
+    char *result_str = NULL; // Format: "score|total"
 
     if (row)
     {

@@ -247,10 +247,6 @@ void *handle_client(void *arg)
         {
             handle_submit_exam(g_server, client, &msg);
         }
-        else if (strcmp(msg.command, "FINISH_EXAM") == 0)
-        {
-            handle_finish_exam(g_server, client, &msg);
-        }
         else if (strcmp(msg.command, MSG_PING) == 0)
         {
             send_error_or_response(client->socket_fd, CODE_PONG, "PONG");

@@ -77,7 +77,7 @@ void ui_print_menu_room(int is_creator)
     }
     else
     {
-        printf("⏳ Waiting for creator to start the exam...\n");
+        printf("...Waiting for creator to start the exam...\n");
         printf("1. Leave Room\n");
     }
 

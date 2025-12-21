@@ -279,8 +279,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     // Validate params (room_id|answers)
     if (msg->param_count < 2)
     {
-        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR,
-                               "Usage: SUBMIT_EXAM room_id|answers");
+        send_error_or_response(client->socket_fd, CODE_SYNTAX_ERROR, "Usage: SUBMIT_EXAM room_id|answers");
         return;
     }
 
@@ -292,8 +291,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     if (status < 0)
     {
         send_error_or_response(client->socket_fd, CODE_ROOM_NOT_FOUND, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "SUBMIT_EXAM", "Room not found");
+        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Room not found");
         return;
     }
 
@@ -302,8 +300,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     {
         if (status == 0)
         {
-            send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS,
-                                   "Room not started yet");
+            send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, "Room not started yet");
         }
         else if (status == 2)
         {
@@ -319,8 +316,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     if (!is_participant && !is_creator)
     {
         send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "SUBMIT_EXAM", "Not in room");
+        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Not in room");
         return;
     }
 
@@ -338,31 +334,27 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
         }
         else
         {
-            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED,
-                                   "Already submitted");
+            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, "Already submitted");
         }
-        db_log_activity(server->db, "WARNING", client->username,
-                        "SUBMIT_EXAM", "Already submitted");
+        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Already submitted");
         return;
     }
 
     // Get correct answers and total questions
     int score = 0;
     int total = 0;
-    char correct_answers[256];
+    char correct_answers[256]; // Format: "ABCD..."
 
     if (db_get_correct_answers(server->db, room_id, correct_answers, &total) < 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to grade");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "SUBMIT_EXAM", "Failed to get correct answers");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to grade");
+        db_log_activity(server->db, "ERROR", client->username, "SUBMIT_EXAM", "Failed to get correct answers");
         return;
     }
 
     // Parse and count correct answers
-    char *answer_copy = strdup(answers);
-    char *answer_tok = strtok(answer_copy, ",");
+    char *answer_copy = strdup(answers);         // Make a modifiable copy
+    char *answer_tok = strtok(answer_copy, ","); // Tokenize by comma
     int idx = 0;
 
     while (answer_tok && idx < total)
@@ -385,11 +377,9 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     if (idx != total)
     {
         char error_msg[128];
-        snprintf(error_msg, sizeof(error_msg),
-                 "Answer count mismatch: expected %d, got %d", total, idx);
+        snprintf(error_msg, sizeof(error_msg), "Answer count mismatch: expected %d, got %d", total, idx);
         send_error_or_response(client->socket_fd, CODE_INVALID_PARAMS, error_msg);
-        db_log_activity(server->db, "WARNING", client->username,
-                        "SUBMIT_EXAM", error_msg);
+        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", error_msg);
         return;
     }
 
@@ -397,13 +387,10 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     int time_taken = 0;
 
     // Save result to database
-    if (db_submit_exam(server->db, room_id, client->username, score, total,
-                       answers, time_taken) < 0)
+    if (db_submit_exam(server->db, room_id, client->username, score, total, answers, time_taken) < 0)
     {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR,
-                               "Failed to save result");
-        db_log_activity(server->db, "ERROR", client->username,
-                        "SUBMIT_EXAM", "Database error");
+        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to save result");
+        db_log_activity(server->db, "ERROR", client->username, "SUBMIT_EXAM", "Database error");
         return;
     }
 
@@ -419,8 +406,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     // Log activity
     char details[256];
     snprintf(details, sizeof(details), "Score: %d/%d", score, total);
-    db_log_activity(server->db, "INFO", client->username,
-                    "SUBMIT_EXAM", details);
+    db_log_activity(server->db, "INFO", client->username, "SUBMIT_EXAM", details);
 
     printf("[SUBMIT_EXAM] User '%s' scored %d/%d in room '%s'\n",
            client->username, score, total, room_id);
@@ -431,10 +417,8 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
         // Auto-finish the room
         if (db_finish_room(server->db, room_id) == 0)
         {
-            printf("[AUTO-FINISH] Room '%s' finished - all participants submitted\n",
-                   room_id);
-            db_log_activity(server->db, "INFO", "SYSTEM",
-                            "AUTO_FINISH_ROOM", room_id);
+            printf("[AUTO-FINISH] Room '%s' finished - all participants submitted\n", room_id);
+            db_log_activity(server->db, "INFO", "SYSTEM", "AUTO_FINISH_ROOM", room_id);
         }
     }
 }
