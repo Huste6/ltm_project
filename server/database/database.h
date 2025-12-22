@@ -47,7 +47,7 @@ int db_leave_room(Database *db, const char *room_id, const char *username);
 int db_start_room(Database *db, const char *room_id);
 int db_finish_room(Database *db, const char *room_id);
 int db_is_room_creator(Database *db, const char *room_id, const char *username);
-int db_is_in_room(Database *db, const char *room_id, const char *username);
+int db_is_participant(Database *db, const char *room_id, const char *username);
 int db_delete_room(Database *db, const char *room_id);
 
 // Submit exam operations

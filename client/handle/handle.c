@@ -624,7 +624,7 @@ void handle_submit_exam(Client *client)
 
             if (answer_count > 0)
             {
-                strcat(answers, ",");
+                strcat(answers, ","); // server expects comma-separated answers
             }
             strncat(answers, &upper, 1);
             answer_count++;
@@ -637,7 +637,7 @@ void handle_submit_exam(Client *client)
             return;
         }
 
-        token = strtok(NULL, " ,");
+        token = strtok(NULL, " ,"); // Get next token
     }
 
     if (answer_count == 0)

@@ -720,13 +720,13 @@ int db_is_room_creator(Database *db, const char *room_id, const char *username)
 }
 
 /**
- * @brief Check if user is in a room (participant)
+ * @brief Check if user is a participant in room
  * @param db Pointer to Database
  * @param room_id Room ID
  * @param username Username to check
- * @return 1 if user is in room, 0 otherwise
+ * @return 1 if user is participant, 0 otherwise
  */
-int db_is_in_room(Database *db, const char *room_id, const char *username)
+int db_is_participant(Database *db, const char *room_id, const char *username)
 {
     pthread_mutex_lock(&db->mutex);
 
@@ -1033,11 +1033,11 @@ int db_check_all_submitted(Database *db, const char *room_id)
     }
 
     MYSQL_ROW row2 = mysql_fetch_row(result2);
-    int total_submissions = row2 ? atoi(row2[0]) : 0;
+    int total_submissions = row2 ? atoi(row2[0]) : 0; // Get submission count, if NULL return 0
     mysql_free_result(result2);
 
     pthread_mutex_unlock(&db->mutex);
 
     // All submitted if counts match
-    return (total_submissions >= total_participants);
+    return (total_submissions >= total_participants); // creator is not in participants
 }

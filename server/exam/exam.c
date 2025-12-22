@@ -52,7 +52,7 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
     }
 
     // Check user in room (participant OR creator)
-    int is_participant = db_is_in_room(server->db, room_id, client->username);
+    int is_participant = db_is_participant(server->db, room_id, client->username);
     int is_creator = db_is_room_creator(server->db, room_id, client->username);
 
     if (!is_participant && !is_creator)
@@ -310,7 +310,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     }
 
     // Check user in room (participant OR creator)
-    int is_participant = db_is_in_room(server->db, room_id, client->username);
+    int is_participant = db_is_participant(server->db, room_id, client->username);
     int is_creator = db_is_room_creator(server->db, room_id, client->username);
 
     if (!is_participant && !is_creator)
@@ -355,13 +355,14 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     // Parse and count correct answers
     char *answer_copy = strdup(answers);         // Make a modifiable copy
     char *answer_tok = strtok(answer_copy, ","); // Tokenize by comma
-    int idx = 0;
+    int idx = 0;                                 // Index for questions
 
+    // Compare each answer with correct answers
     while (answer_tok && idx < total)
     {
         // Trim whitespace and compare first char (A, B, C, D)
         while (*answer_tok == ' ')
-            answer_tok++;
+            answer_tok++; // Skip leading spaces
 
         if (answer_tok[0] == correct_answers[idx])
         {
@@ -408,8 +409,7 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     snprintf(details, sizeof(details), "Score: %d/%d", score, total);
     db_log_activity(server->db, "INFO", client->username, "SUBMIT_EXAM", details);
 
-    printf("[SUBMIT_EXAM] User '%s' scored %d/%d in room '%s'\n",
-           client->username, score, total, room_id);
+    printf("[SUBMIT_EXAM] User '%s' scored %d/%d in room '%s'\n", client->username, score, total, room_id);
 
     // Check if all participants have submitted
     if (db_check_all_submitted(server->db, room_id))
