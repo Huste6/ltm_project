@@ -867,10 +867,10 @@ int db_submit_exam(Database *db, const char *room_id, const char *username, int 
     pthread_mutex_lock(&db->mutex);
 
     // Escape the answers string to prevent SQL injection
-    char escaped_answers[2048];
+    char escaped_answers[4096];
     mysql_real_escape_string(db->conn, escaped_answers, answers, strlen(answers));
 
-    char query[2048];
+    char query[8192];
     snprintf(query, sizeof(query),
              "INSERT INTO exam_results (room_id, username, score, total_questions, "
              "answers, time_taken_seconds) VALUES ('%s', '%s', %d, %d, '%s', %d)",

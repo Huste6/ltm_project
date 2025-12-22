@@ -79,6 +79,7 @@ int main()
             }
             break;
         case CLIENT_IN_ROOM:
+        {
             fd_set readfds; // select descriptor set
             int maxfd;
             char buffer[BUFFER_SIZE];
@@ -165,7 +166,8 @@ int main()
                     break;
                 }
             }
-            break;
+        }
+        break;
         case CLIENT_IN_EXAM:
             ui_print_menu_exam();
             scanf("%d", &choice);

@@ -50,7 +50,7 @@ void handle_register(Client *client)
     }
     else
     {
-        char msg[256];
+        char msg[512];
         snprintf(msg, sizeof(msg), "Registration failed: %s", response.message);
         ui_show_error(msg);
     }
@@ -97,7 +97,7 @@ void handle_login(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
         ui_show_error(error);
     }
@@ -134,7 +134,7 @@ void handle_logout(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
         ui_show_error(error);
     }
@@ -216,7 +216,7 @@ void handle_list_rooms(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -283,7 +283,7 @@ void handle_create_room(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -339,7 +339,7 @@ void handle_join_room(Client *client)
     // Room not found
     else if (resp.code == CODE_ROOM_NOT_FOUND)
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "Room not found!\n");
         ui_show_error(error);
     }
@@ -347,7 +347,7 @@ void handle_join_room(Client *client)
     // Room already started
     else if (resp.code == CODE_ROOM_IN_PROGRESS)
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "Room already started!\n");
         ui_show_error(error);
     }
@@ -355,14 +355,14 @@ void handle_join_room(Client *client)
     // Room finished
     else if (resp.code == CODE_ROOM_FINISHED)
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "Room exam finished!\n");
         ui_show_error(error);
     }
 
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -425,7 +425,7 @@ void handle_view_result(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -469,7 +469,7 @@ void handle_leave_room(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -513,7 +513,7 @@ void handle_start_exam(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -562,7 +562,7 @@ void handle_get_exam(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }
@@ -631,7 +631,7 @@ void handle_submit_exam(Client *client)
         }
         else
         {
-            char error[256];
+            char error[512];
             snprintf(error, sizeof(error), "Invalid answer '%s'. Use A, B, C, or D only.", token);
             ui_show_error(error);
             return;
@@ -741,7 +741,7 @@ void handle_submit_exam(Client *client)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
     }

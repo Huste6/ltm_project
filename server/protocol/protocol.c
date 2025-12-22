@@ -157,19 +157,22 @@ int parse_message(const char *buffer, Message *msg)
 // create_control_message("LOGIN", ["john", "pass123"], 2, buffer, size) -> "LOGIN john|pass123\n"
 int create_control_message(const char *command, const char **params, int param_count, char *buffer, size_t buffer_size)
 {
-    int offset = snprintf(buffer, buffer_size, "%s", command); // buffer = "COMMAND"
+    size_t offset = snprintf(buffer, buffer_size, "%s", command); // buffer = "COMMAND"
 
     // offset < buffer_size - 2 to leave space for '\n' and '\0'
     for (int i = 0; i < param_count && offset < buffer_size - 2; i++)
     {
-        offset += snprintf(buffer + offset, buffer_size - offset, "%s%s", i == 0 ? " " : "|", params[i]);
+        int written = snprintf(buffer + offset, buffer_size - offset, "%s%s", i == 0 ? " " : "|", params[i]);
+        if (written < 0)
+            break;
+        offset += written;
     }
     if (offset < buffer_size - 1)
     {
         buffer[offset++] = '\n';
         buffer[offset] = '\0';
     }
-    return offset;
+    return (int)offset;
 }
 
 // Format: "CODE DATA <length>\n<data>"

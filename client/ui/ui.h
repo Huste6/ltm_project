@@ -31,6 +31,8 @@ void ui_print_menu_room(int is_creator);
 
 void ui_print_menu_exam();
 
+void ui_print_list_room_filter();
+
 /**
  * @brief Display error message
  * @param message Error message
