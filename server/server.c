@@ -2,7 +2,7 @@
 #include "auth/auth.h"
 #include "room/room.h"
 #include "exam/exam.h"
-// #include "practice/practice.h"
+#include "practice/practice.h"
 #include "logger/logger.h"
 
 #include <stdio.h>
@@ -349,6 +349,14 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_VIEW_RESULT) == 0)
         {
             handle_view_result(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, "PRACTICE") == 0)
+        {
+            handle_practice(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, "SUBMIT_PRACTICE") == 0)
+        {
+            handle_submit_practice(g_server, client, &msg);
         }
         else
         {

@@ -395,7 +395,7 @@ void handle_start_exam(Server *server, ClientSession *client, Message *msg)
         {
             server->clients[i].state = STATE_IN_EXAM;
             // Initialize exam answer tracking for auto-submit on timeout
-            memset(server->clients[i].exam_answers, 0, MAX_QUESTIONS);
+            memset(server->clients[i].exam_answers, 0, MAX_QUESTIONS); // No answers yet
             server->clients[i].exam_total_questions = 0;
             server->clients[i].has_submitted = 0;
         }
@@ -461,16 +461,42 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // Check room is IN_PROGRESS
-    if (status != 1) // 1 = IN_PROGRESS
+    // Check room is IN_PROGRESS or FINISHED (allow submit after timeout for force-submit)
+    if (status != 1 && status != 2) // 1 = IN_PROGRESS, 2 = FINISHED
     {
         if (status == 0)
         {
             send_error_or_response(client->socket_fd, CODE_ROOM_IN_PROGRESS, "Room not started yet");
         }
-        else if (status == 2)
+        return;
+    }
+
+    // If room is FINISHED and user hasn't submitted, do force-submit now
+    if (status == 2) // FINISHED
+    {
+        printf("[SUBMIT_EXAM] Room finished, force-submitting for user '%s' in room '%s'\n",
+               client->username, room_id);
+
+        // Call force_submit_exam which will grade and save
+        if (force_submit_exam(server, client, room_id) == 0)
         {
-            send_error_or_response(client->socket_fd, CODE_ROOM_FINISHED, room_id);
+            // Now retrieve and return the result
+            char *result = db_get_exam_result(server->db, room_id, client->username);
+            if (result)
+            {
+                char response[128];
+                snprintf(response, sizeof(response), "%s", result);
+                send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, response);
+                free(result);
+            }
+            else
+            {
+                send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, "Exam submitted (timeout)");
+            }
+        }
+        else
+        {
+            send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to submit exam");
         }
         return;
     }

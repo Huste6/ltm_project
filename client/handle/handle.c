@@ -234,7 +234,7 @@ void handle_create_room(Client *client)
     printf("\n=== CREATE ROOM ===\n");
     ui_get_input("Room name: ", room_name, sizeof(room_name));
     ui_get_input("Number of questions (5-50): ", num_questions_str, sizeof(num_questions_str));
-    ui_get_input("Time limit (minutes, 5-120): ", time_minutes_str, sizeof(time_minutes_str));
+    ui_get_input("Time limit (minutes, 1-120): ", time_minutes_str, sizeof(time_minutes_str));
 
     // ========================== Validate parameters ============================================
     int num_questions = atoi(num_questions_str);
@@ -246,9 +246,9 @@ void handle_create_room(Client *client)
         return;
     }
 
-    if (time_minutes < 5 || time_minutes > 120)
+    if (time_minutes < 1 || time_minutes > 120)
     {
-        ui_show_error("Time limit must be between 5 and 120 minutes");
+        ui_show_error("Time limit must be between 1 and 120 minutes");
         return;
     }
 
@@ -466,7 +466,6 @@ void handle_leave_room(Client *client)
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room)); // Clear current room
         client->is_creator = 0;                                        // Reset creator flag
-        client->has_received_exam = 0;                                 // Reset exam flag
     }
     else
     {
@@ -521,10 +520,7 @@ void handle_start_exam(Client *client)
 }
 
 /**
- * @brief Allow user to modify an answer before submitting
- * @param client Client instance
- * @param question_ids Array of question IDs (DB IDs)
- * @param total_questions Total number of questions
+ * @brief Allow user to modify a saved answer
  */
 void modify_answer(Client *client, int *question_ids, int total_questions)
 {
@@ -538,7 +534,7 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
         getchar();
         return;
     }
-    getchar(); // Clear newline
+    getchar();
 
     if (q_num < 1 || q_num > total_questions)
     {
@@ -561,7 +557,6 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
         }
         getchar();
 
-        // Convert to uppercase
         if (choice >= 'a' && choice <= 'z')
             choice -= 32;
 
@@ -571,8 +566,8 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
             printf("Invalid! Please use A, B, C, or D.\n");
     }
 
-    // Send SAVE_ANSWER with the new answer
-    int question_id = question_ids[q_num - 1];
+    // Send SAVE_ANSWER to overwrite
+    int question_id = question_ids[q_num - 1]; // Map question number to actual question ID
     char question_id_str[16];
     char opt_str[2];
 
@@ -591,34 +586,191 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
     Response save_resp;
     if (client_receive_response(client, &save_resp) < 0)
     {
-        ui_show_error("Failed to receive save response");
+        ui_show_error("Failed to receive response");
         return;
     }
 
-    if (save_resp.code == 160) // CODE_ANSWER_SAVED
+    if (save_resp.code == 160)
     {
-        printf("✓ Question %d answer updated to %c\n", q_num, choice);
+        printf("✓ Question %d updated to %c\n", q_num, choice);
     }
-    else if (save_resp.code == 230) // CODE_TIME_EXPIRED
+    else if (save_resp.code == 230 || save_resp.code == 231)
     {
-        ui_show_error("Time expired. Cannot modify answer.");
+        ui_show_error("Exam time expired. Cannot modify answer.");
     }
     else
     {
         char error[256];
-        snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
-                 save_resp.code, save_resp.message);
+        snprintf(error, sizeof(error), "Failed: [%d] %s", save_resp.code, save_resp.message);
         ui_show_error(error);
     }
 }
 
 /**
- * @brief Handle GET_EXAM - fetch exam questions and save answers
+ * @brief Display exam questions from JSON data
+ */
+void display_exam_questions(const char *json_data, int *question_ids, int total_questions)
+{
+    printf("\n========================================\n");
+    printf("EXAM QUESTIONS (%d questions)\n", total_questions);
+    printf("========================================\n");
+
+    const char *search = json_data;
+    int q_num = 1;
+
+    while ((search = strstr(search, "\"content\": \"")) != NULL && q_num <= total_questions)
+    {
+        const char *content_start = search + 12;
+        const char *content_end = strstr(content_start, "\"");
+
+        if (content_end)
+        {
+            printf("\nQuestion %d: ", q_num);
+            fwrite(content_start, 1, content_end - content_start, stdout);
+            printf("\n");
+
+            // Find and display options (already formatted by server)
+            const char *options_start = strstr(content_end, "\"options\": [");
+            if (options_start)
+            {
+                options_start += 12;
+                const char *option_end = strstr(options_start, "]");
+
+                if (option_end)
+                {
+                    const char *opt_ptr = options_start;
+                    while (opt_ptr < option_end)
+                    {
+                        const char *opt_start = strstr(opt_ptr, "\"");
+                        if (!opt_start || opt_start >= option_end)
+                            break;
+                        opt_start++;
+
+                        const char *opt_close = strstr(opt_start, "\"");
+                        if (!opt_close || opt_close >= option_end)
+                            break;
+
+                        printf("  ");
+                        fwrite(opt_start, 1, opt_close - opt_start, stdout);
+                        printf("\n");
+
+                        opt_ptr = opt_close + 1;
+                    }
+                }
+            }
+
+            q_num++;
+            search = content_end + 1;
+        }
+        else
+        {
+            break;
+        }
+    }
+
+    printf("========================================\n");
+}
+
+/**
+ * @brief Answer exam questions - auto-save each answer
+ * Client sends SAVE_ANSWER immediately for each question
+ */
+void handle_answer_questions(Client *client, const int *question_ids, int total_questions)
+{
+    printf("\n========================================\n");
+    printf("ANSWER QUESTIONS\n");
+    printf("========================================\n");
+
+    for (int i = 0; i < total_questions; i++)
+    {
+        char choice;
+        int valid = 0;
+
+        // Keep asking until valid answer
+        while (!valid)
+        {
+            printf("Answer for question %d (A/B/C/D): ", i + 1);
+            if (scanf(" %c", &choice) != 1)
+            {
+                ui_show_error("Failed to read input");
+                getchar();
+                continue;
+            }
+            getchar();
+
+            // Convert to uppercase
+            if (choice >= 'a' && choice <= 'z')
+                choice -= 32;
+
+            // Validate
+            if (choice >= 'A' && choice <= 'D')
+            {
+                valid = 1;
+            }
+            else
+            {
+                printf("Invalid! Please use A, B, C, or D.\n");
+            }
+        }
+
+        // Send SAVE_ANSWER immediately
+        char question_id_str[16];
+        char opt_str[2];
+        snprintf(question_id_str, sizeof(question_id_str), "%d", question_ids[i]);
+        opt_str[0] = choice;
+        opt_str[1] = '\0';
+
+        const char *save_params[] = {client->current_room, question_id_str, opt_str};
+
+        if (client_create_send_command(client, "SAVE_ANSWER", save_params, 3) < 0)
+        {
+            ui_show_error("Failed to save answer");
+            continue;
+        }
+
+        Response save_resp;
+        if (client_receive_response(client, &save_resp) < 0)
+        {
+            ui_show_error("Failed to receive save response");
+            continue;
+        }
+
+        if (save_resp.code == 160) // CODE_ANSWER_SAVED
+        {
+            printf("✓ Answer %d saved\n", i + 1);
+        }
+        else if (save_resp.code == 230 || save_resp.code == 231)
+        {
+            // TIME_EXPIRED or INVALID_STATE - exam ended
+            ui_show_error("Exam time expired. Your submitted answers will be graded by the server.");
+            printf("\n========================================\n");
+            printf("You have answered %d question(s).\n", i);
+            printf("========================================\n");
+            return;
+        }
+        else
+        {
+            char error[256];
+            snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
+                     save_resp.code, save_resp.message);
+            ui_show_error(error);
+        }
+    }
+
+    printf("\n========================================\n");
+    printf("All answers saved!\n");
+    printf("You can now submit the exam or modify answers.\n");
+    printf("========================================\n");
+}
+
+/**
+ * @brief Handle GET_EXAM - fetch and display exam questions
  * Flow:
- * 1. Get exam questions from server
- * 2. Display questions to user
- * 3. For each question, ask user and send SAVE_ANSWER with question_id
- * 4. After all answers saved, allow user to modify or submit
+ * 1. Check state
+ * 2. Send GET_EXAM command
+ * 3. Parse JSON to extract question_ids
+ * 4. Display questions
+ * 5. Collect answers (auto-save each one)
  */
 void handle_get_exam(Client *client)
 {
@@ -627,13 +779,6 @@ void handle_get_exam(Client *client)
     if (strlen(client->current_room) == 0)
     {
         ui_show_error("You are not in any room");
-        return;
-    }
-
-    // Prevent getting exam questions multiple times
-    if (client->has_received_exam)
-    {
-        ui_show_error("You have already received the exam questions. You can modify your answers or submit.");
         return;
     }
 
@@ -659,20 +804,17 @@ void handle_get_exam(Client *client)
     {
         ui_show_success("Exam questions received!");
 
-        // Parse JSON to extract question_ids and count questions
+        // Parse JSON to extract question_ids
         int total_questions = 0;
         int question_ids[100];
         memset(question_ids, 0, sizeof(question_ids));
 
         const char *search = resp.data;
-        const char *id_start;
-
         while ((search = strstr(search, "\"question_id\": ")) != NULL && total_questions < 100)
         {
-            id_start = search + 15; // Move past "\"question_id\": "
-            question_ids[total_questions] = atoi(id_start);
+            question_ids[total_questions] = atoi(search + 15);
             total_questions++;
-            search = id_start + 1;
+            search = search + 16;
         }
 
         if (total_questions <= 0)
@@ -681,18 +823,273 @@ void handle_get_exam(Client *client)
             return;
         }
 
+        // Display questions
+        display_exam_questions(resp.data, question_ids, total_questions);
+
+        // Collect answers
+        handle_answer_questions(client, question_ids, total_questions);
+
+        // Show post-exam menu
+        int post_exam_choice = -1;
+        while (post_exam_choice != 0)
+        {
+
+            ui_print_menu_exam();
+            if (scanf("%d", &post_exam_choice) != 1)
+            {
+                ui_show_error("Invalid input");
+                getchar();
+                continue;
+            }
+            getchar();
+
+            switch (post_exam_choice)
+            {
+            case 1:
+                handle_submit_exam(client);
+                post_exam_choice = 0; // Exit menu after submit
+                break;
+            case 2:
+                modify_answer(client, question_ids, total_questions);
+                break;
+            default:
+                printf("Invalid choice!\n");
+            }
+        }
+
+        free(resp.data);
+    }
+    else if (resp.code == 224) // CODE_ROOM_NOT_STARTED
+    {
+        ui_show_error("Room exam has not started yet");
+    }
+    else if (resp.code == 225) // CODE_ROOM_FINISHED
+    {
+        ui_show_error("Room exam has already finished");
+    }
+    else
+    {
+        char error[512];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+    }
+}
+
+/**
+ * @brief Handle submit exam - User submits answers
+ * Server automatically grades from SAVE_ANSWER buffer
+ * Server auto-submits on timeout
+ */
+void handle_submit_exam(Client *client)
+{
+    printf("\n=== SUBMIT EXAM ===\n");
+
+    if (strlen(client->current_room) == 0)
+    {
+        ui_show_error("You are not in any room");
+        return;
+    }
+
+    ui_show_info("Submitting exam...");
+
+    // Send SUBMIT_EXAM command
+    const char *params[] = {client->current_room};
+    if (client_create_send_command(client, "SUBMIT_EXAM", params, 1) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == 130) // CODE_SUBMIT_OK
+    {
+        ui_show_success("Exam submitted successfully!");
+        display_exam_result(resp.message);
+
+        // Return to menu
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+        printf("\nYou have been returned to the main menu.\n");
+    }
+    else if (resp.code == 131) // CODE_ALREADY_SUBMITTED
+    {
+        ui_show_info("Exam already submitted.");
+        display_exam_result(resp.message);
+
+        // Return to menu
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+    }
+    else if (resp.code == 230) // CODE_TIME_EXPIRED
+    {
+        ui_show_error("Exam time expired. Your submitted answers will be graded by server.");
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+    }
+    else
+    {
+        char error[512];
+        snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
+        ui_show_error(error);
+
+        // Return to menu
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+    }
+}
+
+/**
+ * @brief Display exam result from score|total format
+ */
+void display_exam_result(const char *result_str)
+{
+    if (!result_str)
+        return;
+
+    printf("\n========================================\n");
+    printf("YOUR RESULT\n");
+    printf("========================================\n");
+
+    // Parse score|total
+    char temp[256];
+    strncpy(temp, result_str, sizeof(temp) - 1);
+    temp[sizeof(temp) - 1] = '\0';
+
+    char *score_str = strtok(temp, "|");
+    char *total_str = strtok(NULL, "|");
+
+    if (score_str && total_str)
+    {
+        int score = atoi(score_str);
+        int total = atoi(total_str);
+        double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
+
+        printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
+
+        if (percentage >= 80)
+        {
+            printf("Excellent! Well done!\n");
+        }
+        else if (percentage >= 60)
+        {
+            printf("Good job! Keep it up!\n");
+        }
+        else if (percentage >= 40)
+        {
+            printf("Not bad, but you can do better!\n");
+        }
+        else
+        {
+            printf("Keep practicing!\n");
+        }
+    }
+    else
+    {
+        printf("Result: %s\n", result_str);
+    }
+
+    printf("========================================\n");
+}
+
+/**
+ * @brief Handle PRACTICE command - Start practice mode
+ * User answers questions and auto-submits on timeout
+ */
+void handle_practice(Client *client)
+{
+    char num_questions_str[16];
+    char time_minutes_str[16];
+
+    printf("\n=== PRACTICE MODE ===\n");
+    ui_get_input("Number of questions (5-50): ", num_questions_str, sizeof(num_questions_str));
+    ui_get_input("Time limit (minutes, 1-60): ", time_minutes_str, sizeof(time_minutes_str));
+
+    int num_questions = atoi(num_questions_str);
+    int time_minutes = atoi(time_minutes_str);
+
+    if (num_questions < 5 || num_questions > 50)
+    {
+        ui_show_error("Number of questions must be between 5 and 50");
+        return;
+    }
+
+    if (time_minutes < 1 || time_minutes > 60)
+    {
+        ui_show_error("Time limit must be between 1 and 60 minutes");
+        return;
+    }
+
+    // Send PRACTICE command
+    const char *params[] = {num_questions_str, time_minutes_str};
+    if (client_create_send_command(client, "PRACTICE", params, 2) < 0)
+    {
+        ui_show_error("Failed to send command");
+        return;
+    }
+
+    // Receive response
+    Response resp;
+    if (client_receive_response(client, &resp) < 0)
+    {
+        ui_show_error("Failed to receive response");
+        return;
+    }
+
+    if (resp.code == 140) // CODE_DATA
+    {
+        ui_show_success("Practice questions received!");
+
+        // Parse JSON to extract practice_id and time_limit
+        const char *practice_id_start = strstr(resp.data, "\"practice_id\":\"");
+        if (!practice_id_start)
+        {
+            ui_show_error("Failed to parse practice_id");
+            free(resp.data);
+            return;
+        }
+        practice_id_start += 15;
+        const char *practice_id_end = strstr(practice_id_start, "\"");
+        size_t practice_id_len = practice_id_end - practice_id_start;
+        strncpy(client->practice_id, practice_id_start, practice_id_len);
+        client->practice_id[practice_id_len] = '\0';
+
+        // Extract time_limit
+        const char *time_limit_start = strstr(resp.data, "\"time_limit\":");
+        int time_limit = 0;
+        if (time_limit_start)
+            time_limit = atoi(time_limit_start + 13);
+
+        // Parse question_ids
+        int total_questions = 0;
+        int question_ids[100];
+        memset(question_ids, 0, sizeof(question_ids));
+
+        const char *search = resp.data;
+        while ((search = strstr(search, "\"question_id\":")) != NULL && total_questions < 100)
+        {
+            question_ids[total_questions] = atoi(search + 14);
+            total_questions++;
+            search++;
+        }
+
         printf("\n========================================\n");
-        printf("EXAM QUESTIONS (%d questions)\n", total_questions);
+        printf("PRACTICE MODE (%d questions, %d minutes)\n", total_questions, time_limit);
+        printf("Practice ID: %s\n", client->practice_id);
         printf("========================================\n");
 
-        // Display questions with numbers
+        // Display questions
         search = resp.data;
         int q_num = 1;
-        const char *content_start, *options_start;
-
-        while ((search = strstr(search, "\"content\": \"")) != NULL && q_num <= total_questions)
+        while ((search = strstr(search, "\"content\":\"")) != NULL && q_num <= total_questions)
         {
-            content_start = search + 12; // Move past "\"content\": \""
+            const char *content_start = search + 11;
             const char *content_end = strstr(content_start, "\"");
 
             if (content_end)
@@ -701,11 +1098,11 @@ void handle_get_exam(Client *client)
                 fwrite(content_start, 1, content_end - content_start, stdout);
                 printf("\n");
 
-                // Find and display options
-                options_start = strstr(content_end, "\"options\": [");
+                // Find and display options (already formatted by server)
+                const char *options_start = strstr(content_end, "\"options\":[");
                 if (options_start)
                 {
-                    options_start += 12; // Move past "\"options\": ["
+                    options_start += 11;
                     const char *option_end = strstr(options_start, "]");
 
                     if (option_end)
@@ -716,7 +1113,7 @@ void handle_get_exam(Client *client)
                             const char *opt_start = strstr(opt_ptr, "\"");
                             if (!opt_start || opt_start >= option_end)
                                 break;
-                            opt_start++; // Skip opening quote
+                            opt_start++;
 
                             const char *opt_close = strstr(opt_start, "\"");
                             if (!opt_close || opt_close >= option_end)
@@ -741,175 +1138,56 @@ void handle_get_exam(Client *client)
         }
 
         printf("========================================\n");
-        printf("\nStarting exam...\n");
+        printf("\nStarting practice...\n");
 
-        // Mark that user has received exam
-        client->has_received_exam = 1;
+        // Update state
+        client->state = CLIENT_IN_PRACTICE;
 
-        // Loop through each question and ask user
-        printf("\n========================================\n");
-        printf("ANSWER QUESTIONS\n");
-        printf("========================================\n");
-
-        int all_saved = 1; // Track if all answers were saved successfully
-
+        // Collect answers
+        char answers[512] = "";
         for (int i = 0; i < total_questions; i++)
         {
             char choice;
             int valid = 0;
 
-            // Keep asking until valid answer
             while (!valid)
             {
                 printf("Answer for question %d (A/B/C/D): ", i + 1);
                 if (scanf(" %c", &choice) != 1)
                 {
                     ui_show_error("Failed to read input");
-                    getchar(); // Clear input buffer
+                    getchar();
                     continue;
                 }
-                getchar(); // Clear newline
+                getchar();
 
-                // Convert to uppercase
                 if (choice >= 'a' && choice <= 'z')
-                {
                     choice -= 32;
-                }
 
-                // Validate
                 if (choice >= 'A' && choice <= 'D')
-                {
                     valid = 1;
-                }
                 else
-                {
                     printf("Invalid! Please use A, B, C, or D.\n");
-                }
             }
 
-            // Send SAVE_ANSWER command with question_id (NOT index)
-            char question_id_str[16];
-            char opt_str[2];
-            snprintf(question_id_str, sizeof(question_id_str), "%d", question_ids[i]);
-            opt_str[0] = choice;
-            opt_str[1] = '\0';
+            if (i > 0)
+                strcat(answers, ",");
 
-            const char *save_params[] = {
-                client->current_room,
-                question_id_str,
-                opt_str};
+            char answer_str[2] = {choice, '\0'};
+            strcat(answers, answer_str);
 
-            if (client_create_send_command(client, "SAVE_ANSWER", save_params, 3) < 0)
-            {
-                ui_show_error("Failed to save answer");
-                all_saved = 0;
-                continue;
-            }
-
-            // Receive SAVE_ANSWER response
-            Response save_resp;
-            if (client_receive_response(client, &save_resp) < 0)
-            {
-                ui_show_error("Failed to receive save response");
-                all_saved = 0;
-                continue;
-            }
-
-            if (save_resp.code == 160) // CODE_ANSWER_SAVED
-            {
-                printf("✓ Answer %d saved\n", i + 1);
-            }
-            else if (save_resp.code == 230) // CODE_TIME_EXPIRED
-            {
-                // Timeout occurred - exit loop immediately
-                ui_show_error("Time expired. Cannot save more answers.");
-                printf("\n========================================\n");
-                printf("You have answered %d question(s).\n", i);
-                printf("Your answers will be submitted and graded.\n");
-                printf("========================================\n");
-
-                // Auto-submit exam
-                printf("\nSubmitting exam...\n");
-                handle_submit_exam(client);
-                return;
-            }
-            else if (save_resp.code == 231) // CODE_INVALID_STATE (room not in progress)
-            {
-                // Room not in progress - likely timed out
-                ui_show_error("Time expired. Exam has ended.");
-                printf("\n========================================\n");
-                printf("You have answered %d question(s).\n", i);
-                printf("Your answers will be submitted and graded.\n");
-                printf("========================================\n");
-
-                // Auto-submit exam
-                printf("\nSubmitting exam...\n");
-                handle_submit_exam(client);
-                return;
-            }
-            else
-            {
-                char error[256];
-                snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
-                         save_resp.code, save_resp.message);
-                ui_show_error(error);
-                all_saved = 0;
-            }
+            printf("✓ Answer %d saved\n", i + 1);
         }
 
         printf("\n========================================\n");
-        if (all_saved)
-        {
-            printf("All answers saved! You can now submit the exam.\n");
-        }
-        else
-        {
-            printf("Some answers may not have been saved.\n");
-            printf("You can modify your answers before submitting.\n");
-        }
+        printf("All answers collected!\n");
         printf("========================================\n");
 
-        // Allow user to modify answers before submitting
-        while (1)
-        {
-            printf("\nOptions:\n");
-            printf("1. Submit exam\n");
-            printf("2. Change an answer\n");
-            printf("Choice: ");
+        free(resp.data);
 
-            int option;
-            if (scanf("%d", &option) != 1)
-            {
-                ui_show_error("Invalid input");
-                getchar();
-                continue;
-            }
-            getchar();
-
-            if (option == 1)
-            {
-                // Submit exam immediately
-                handle_submit_exam(client);
-                return;
-            }
-            else if (option == 2)
-            {
-                // Modify an answer
-                modify_answer(client, question_ids, total_questions);
-            }
-            else
-            {
-                printf("Invalid choice. Try again.\n");
-            }
-        }
-    }
-    else if (resp.code == 224) // CODE_ROOM_NOT_STARTED
-    {
-        ui_show_error("Room exam has not started yet");
-    }
-    else if (resp.code == 225) // CODE_ROOM_FINISHED
-    {
-        ui_show_error("Room exam has already finished");
+        // Submit practice automatically
+        printf("\nSubmitting practice...\n");
+        handle_submit_practice(client, answers);
     }
     else
     {
@@ -920,24 +1198,23 @@ void handle_get_exam(Client *client)
 }
 
 /**
- * @brief Handle submit exam - End exam and submit saved answers
- * Server grades from SAVE_ANSWER buffer, not from SUBMIT_EXAM
+ * @brief Handle SUBMIT_PRACTICE command
  */
-void handle_submit_exam(Client *client)
+void handle_submit_practice(Client *client, const char *answers)
 {
-    printf("\n=== SUBMIT EXAM ===\n");
+    printf("\n=== SUBMIT PRACTICE ===\n");
 
-    if (strlen(client->current_room) == 0)
+    if (strlen(client->practice_id) == 0)
     {
-        ui_show_error("You are not in any room");
+        ui_show_error("No active practice session");
         return;
     }
 
-    ui_show_info("Submitting exam...");
+    ui_show_info("Submitting practice...");
 
-    // Send SUBMIT_EXAM command: room_id only (no answers param)
-    const char *params[] = {client->current_room};
-    if (client_create_send_command(client, "SUBMIT_EXAM", params, 1) < 0)
+    // Send SUBMIT_PRACTICE command
+    const char *params[] = {client->practice_id, answers};
+    if (client_create_send_command(client, "SUBMIT_PRACTICE", params, 2) < 0)
     {
         ui_show_error("Failed to send command");
         return;
@@ -951,22 +1228,37 @@ void handle_submit_exam(Client *client)
         return;
     }
 
-    if (resp.code == 130) // CODE_SUBMIT_OK
+    if (resp.code == 141) // CODE_PRACTICE_RESULT
     {
-        ui_show_success("Exam submitted successfully!");
         printf("\n========================================\n");
-        printf("YOUR RESULT\n");
+        printf("YOUR PRACTICE RESULT\n");
         printf("========================================\n");
 
-        // Parse score|total from message
-        char *score_str = strtok(resp.message, "|");
+        // Parse score|total|TIMEOUT?
+        char temp[256];
+        strncpy(temp, resp.message, sizeof(temp) - 1);
+        temp[sizeof(temp) - 1] = '\0';
+
+        char *score_str = strtok(temp, "|");
         char *total_str = strtok(NULL, "|");
+        char *timeout_flag = strtok(NULL, "|");
 
         if (score_str && total_str)
         {
             int score = atoi(score_str);
             int total = atoi(total_str);
             double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
+
+            // Check if timeout occurred
+            if (timeout_flag && strcmp(timeout_flag, "TIMEOUT") == 0)
+            {
+                printf("⏱️  TIME EXPIRED!\n");
+                printf("Your answers have been auto-submitted.\n\n");
+            }
+            else
+            {
+                ui_show_success("Practice submitted successfully!");
+            }
 
             printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
 
@@ -994,46 +1286,23 @@ void handle_submit_exam(Client *client)
 
         printf("========================================\n");
 
-        // Update client state - exit exam
+        // Return to menu
         client->state = CLIENT_AUTHENTICATED;
-        memset(client->current_room, 0, sizeof(client->current_room));
-
+        memset(client->practice_id, 0, sizeof(client->practice_id));
         printf("\nYou have been returned to the main menu.\n");
-    }
-    else if (resp.code == 131) // CODE_ALREADY_SUBMITTED
-    {
-        ui_show_info("You have already submitted this exam!");
-        printf("\n========================================\n");
-        printf("YOUR PREVIOUS RESULT\n");
-        printf("========================================\n");
-
-        // Parse score|total from message
-        char *score_str = strtok(resp.message, "|");
-        char *total_str = strtok(NULL, "|");
-
-        if (score_str && total_str)
-        {
-            int score = atoi(score_str);
-            int total = atoi(total_str);
-            double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
-
-            printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
-        }
-        else
-        {
-            printf("Result: %s\n", resp.message);
-        }
-
-        printf("========================================\n");
     }
     else if (resp.code == 230) // CODE_TIME_EXPIRED
     {
-        ui_show_error("Exam time expired! Your answers will be auto-submitted.");
+        ui_show_error("Practice time expired. Your submitted answers will be graded by server.");
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->practice_id, 0, sizeof(client->practice_id));
     }
     else
     {
         char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->practice_id, 0, sizeof(client->practice_id));
     }
 }

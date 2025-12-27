@@ -126,4 +126,50 @@ void handle_get_exam(Client *client);
  */
 void handle_submit_exam(Client *client);
 
+/**
+ * @brief Handle PRACTICE - start practice mode
+ * @param client Client instance
+ *
+ * Flow:
+ * 1. Get num_questions and time_limit from user
+ * 2. Send PRACTICE command to server
+ * 3. Receive 140 DATA with questions JSON
+ * 4. Display questions and collect answers
+ * 5. Submit answers automatically
+ */
+void handle_practice(Client *client);
+
+/**
+ * @brief Handle SUBMIT_PRACTICE - submit practice answers
+ * @param client Client instance
+ * @param answers Comma-separated answers
+ *
+ * Flow:
+ * 1. Send SUBMIT_PRACTICE practice_id|answers
+ * 2. Receive 141 PRACTICE_RESULT score|total
+ * 3. Display result
+ * 4. Update client state to AUTHENTICATED
+ */
+void handle_submit_practice(Client *client, const char *answers);
+
+/**
+ * @brief Display exam questions from JSON data
+ */
+void display_exam_questions(const char *json_data, int *question_ids, int total_questions);
+
+/**
+ * @brief Answer exam questions - auto-save each answer
+ */
+void handle_answer_questions(Client *client, const int *question_ids, int total_questions);
+
+/**
+ * @brief Display exam result from score|total format
+ */
+void display_exam_result(const char *result_str);
+
+/**
+ * @brief Allow user to modify a saved answer
+ */
+void modify_answer(Client *client, int *question_ids, int total_questions);
+
 #endif // HANDLE_H

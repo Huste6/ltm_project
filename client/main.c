@@ -69,6 +69,9 @@ int main()
                 handle_view_result(&client);
                 break;
             case 5:
+                handle_practice(&client);
+                break;
+            case 6:
                 handle_logout(&client);
                 break;
             case 0:

@@ -16,7 +16,8 @@ typedef enum
     CLIENT_CONNECTED,     // đã kết nối nhưng chưa đăng nhập
     CLIENT_AUTHENTICATED, // đã đăng nhập
     CLIENT_IN_ROOM,       // đang trong phòng thi
-    CLIENT_IN_EXAM        // đang trong phòng làm bài
+    CLIENT_IN_EXAM,       // đang trong phòng làm bài
+    CLIENT_IN_PRACTICE    // đang trong chế độ luyện tập
 } ClientState;
 
 /**
@@ -29,8 +30,9 @@ typedef struct
     char username[MAX_USERNAME_LEN + 1];
     char session_id[MAX_SESSION_ID_LEN];
     char current_room[MAX_ROOM_ID_LEN];
-    int is_creator;        // 1 if user is room creator, 0 otherwise
-    int has_received_exam; // 1 if user already received exam questions
+    int is_creator;       // 1 if user is room creator, 0 otherwise
+    int timeout_occurred; // 1 if timeout auto-submit is happening
+    char practice_id[64]; // Current practice session ID
 } Client;
 
 /**

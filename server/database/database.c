@@ -1189,3 +1189,307 @@ int db_check_all_submitted(Database *db, const char *room_id)
     // All submitted if counts match
     return (total_submissions >= total_participants); // creator is not in participants
 }
+
+/**
+ * @brief Create practice session in database
+ */
+int db_create_practice_session(Database *db, const char *practice_id, const char *username, int num_questions, int time_limit)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "INSERT INTO practice_sessions (practice_id, username, num_questions, time_limit_minutes) "
+             "VALUES ('%s', '%s', %d, %d)",
+             practice_id, username, num_questions, time_limit);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to create practice session: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&db->mutex);
+    return 0;
+}
+
+/**
+ * @brief Get random questions from database and save to practice_questions
+ * Returns JSON array with questions
+ */
+char *db_get_random_questions(Database *db, int num_questions)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT id, question_text, option_a, option_b, option_c, option_d, correct_answer "
+             "FROM questions ORDER BY RAND() LIMIT %d",
+             num_questions);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to get random questions: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    // Build JSON array
+    size_t buffer_size = 65536;
+    char *json = malloc(buffer_size);
+    if (!json)
+    {
+        mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
+
+    strcpy(json, "[");
+    int count = 0;
+
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result)))
+    {
+        if (count > 0)
+            strcat(json, ",");
+
+        // Format options with A., B., C., D. prefix
+        char opt_a[256], opt_b[256], opt_c[256], opt_d[256];
+        snprintf(opt_a, sizeof(opt_a), "A. %s", row[2]);
+        snprintf(opt_b, sizeof(opt_b), "B. %s", row[3]);
+        snprintf(opt_c, sizeof(opt_c), "C. %s", row[4]);
+        snprintf(opt_d, sizeof(opt_d), "D. %s", row[5]);
+
+        char question_json[4096];
+        snprintf(question_json, sizeof(question_json),
+                 "{\"question_id\":%s,\"content\":\"%s\",\"options\":[\"%s\",\"%s\",\"%s\",\"%s\"]}",
+                 row[0], row[1], opt_a, opt_b, opt_c, opt_d);
+
+        strcat(json, question_json);
+        count++;
+    }
+
+    strcat(json, "]");
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return json;
+}
+
+/**
+ * @brief Get correct answers for practice session
+ * Returns correct answers string (e.g., "ABCDABCD...") and total count
+ */
+int db_get_practice_answers(Database *db, const char *practice_id, char *answers_out, int *total_out)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // First verify practice session exists
+    char check_query[512];
+    snprintf(check_query, sizeof(check_query),
+             "SELECT num_questions FROM practice_sessions WHERE practice_id='%s'",
+             practice_id);
+
+    if (mysql_query(db->conn, check_query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *check_result = mysql_store_result(db->conn);
+    if (!check_result || mysql_num_rows(check_result) == 0)
+    {
+        if (check_result)
+            mysql_free_result(check_result);
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW check_row = mysql_fetch_row(check_result);
+    int num_questions = atoi(check_row[0]);
+    mysql_free_result(check_result);
+
+    // Get correct answers from practice_questions joined with questions
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT q.correct_answer "
+             "FROM practice_questions pq "
+             "JOIN questions q ON pq.question_id = q.id "
+             "WHERE pq.practice_id='%s' "
+             "ORDER BY pq.question_order",
+             practice_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    int count = 0;
+    MYSQL_ROW row;
+    while ((row = mysql_fetch_row(result)) && count < 256)
+    {
+        answers_out[count] = row[0][0];
+        count++;
+    }
+    answers_out[count] = '\0';
+
+    *total_out = count;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return 0;
+}
+
+/**
+ * @brief Save practice questions for session
+ */
+int db_save_practice_questions(Database *db, const char *practice_id, const char *question_ids, int num_questions)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Parse question IDs (comma-separated) and insert
+    char *ids_copy = strdup(question_ids);
+    char *token = strtok(ids_copy, ",");
+    int order = 1;
+
+    while (token && order <= num_questions)
+    {
+        int question_id = atoi(token);
+
+        char query[512];
+        snprintf(query, sizeof(query),
+                 "INSERT INTO practice_questions (practice_id, question_id, question_order) "
+                 "VALUES ('%s', %d, %d)",
+                 practice_id, question_id, order);
+
+        if (mysql_query(db->conn, query))
+        {
+            fprintf(stderr, "[DB ERROR] Failed to save practice question: %s\n", mysql_error(db->conn));
+            free(ids_copy);
+            pthread_mutex_unlock(&db->mutex);
+            return -1;
+        }
+
+        token = strtok(NULL, ",");
+        order++;
+    }
+
+    free(ids_copy);
+    pthread_mutex_unlock(&db->mutex);
+    return 0;
+}
+
+/**
+ * @brief Submit practice result
+ */
+int db_submit_practice(Database *db, const char *practice_id, int score)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "UPDATE practice_sessions SET score=%d, is_completed=1 WHERE practice_id='%s'",
+             score, practice_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB ERROR] Failed to submit practice: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    pthread_mutex_unlock(&db->mutex);
+    return 0;
+}
+
+/**
+ * @brief Get practice session info (username, start_time, time_limit)
+ */
+int db_get_practice_info(Database *db, const char *practice_id, char *username_out, time_t *start_time_out, int *time_limit_out)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT username, UNIX_TIMESTAMP(start_time), time_limit_minutes "
+             "FROM practice_sessions WHERE practice_id='%s'",
+             practice_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result || mysql_num_rows(result) == 0)
+    {
+        if (result)
+            mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    strcpy(username_out, row[0]);
+    *start_time_out = (time_t)atol(row[1]);
+    *time_limit_out = atoi(row[2]);
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+    return 0;
+}
+
+/**
+ * @brief Check if practice already submitted
+ */
+int db_check_practice_submitted(Database *db, const char *practice_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+    snprintf(query, sizeof(query),
+             "SELECT is_completed FROM practice_sessions WHERE practice_id='%s'",
+             practice_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result || mysql_num_rows(result) == 0)
+    {
+        if (result)
+            mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return 0;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int is_completed = atoi(row[0]);
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return is_completed;
+}
