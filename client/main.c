@@ -120,10 +120,21 @@ int main()
 
                         if (strstr(buffer, "125 START_OK") != NULL)
                         {
-                            printf("\nCreator has started the exam!\n");
-                            printf("Loading exam questions...\n");
-
+                            printf("\nExam has started! Loading questions...\n");
                             client.state = CLIENT_IN_EXAM;
+                            break;
+                        }
+                        else if (strstr(buffer, "230 TIME_EXPIRED") != NULL)
+                        {
+                            printf("\n========================================\n");
+                            printf("TIME EXPIRED - Exam has ended!\n");
+                            printf("Your saved answers will be graded.\n");
+                            printf("========================================\n");
+
+                            client.state = CLIENT_AUTHENTICATED;
+                            memset(client.current_room, 0, sizeof(client.current_room));
+                            client.is_creator = 0;
+                            ui_wait_enter();
                             break;
                         }
                     }
@@ -169,27 +180,10 @@ int main()
         }
         break;
         case CLIENT_IN_EXAM:
-            ui_print_menu_exam();
-            scanf("%d", &choice);
-            getchar();
-
-            switch (choice)
-            {
-            case 1:
-                handle_get_exam(&client);
-                break;
-            case 2:
-                handle_submit_exam(&client);
-                break;
-            case 0:
-                client.state = CLIENT_AUTHENTICATED;
-                memset(client.current_room, 0, sizeof(client.current_room));
-                client.is_creator = 0;
-                break;
-            default:
-                ui_show_error("Invalid choice!");
-                break;
-            }
+            // Auto-call get exam (triggered by START_OK broadcast)
+            handle_get_exam(&client);
+            // After handle_get_exam, user either submitted or timed out
+            // State should be back to AUTHENTICATED or DISCONNECTED
             break;
         default:
             ui_show_error("Unknown client state!");

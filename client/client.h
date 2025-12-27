@@ -29,7 +29,8 @@ typedef struct
     char username[MAX_USERNAME_LEN + 1];
     char session_id[MAX_SESSION_ID_LEN];
     char current_room[MAX_ROOM_ID_LEN];
-    int is_creator; // 1 if user is room creator, 0 otherwise
+    int is_creator;        // 1 if user is room creator, 0 otherwise
+    int has_received_exam; // 1 if user already received exam questions
 } Client;
 
 /**

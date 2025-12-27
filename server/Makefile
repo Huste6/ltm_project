@@ -19,8 +19,8 @@ SOURCES = main.c \
           auth.c \
           room.c \
           exam.c \
-          practice.c \
           logger.c
+# practice.c temporarily disabled due to compilation errors
 
 # Object files
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)

@@ -26,6 +26,7 @@
 // Exam & Submit Codes
 #define CODE_SUBMIT_OK 130         // Nộp bài lần đầu
 #define CODE_ALREADY_SUBMITTED 131 // Đã nộp rồi
+#define CODE_ANSWER_SAVED 160      // Lưu đáp án thành công
 
 // Data Transfer Codes
 #define CODE_DATA 140            // Dữ liệu luyện tập
@@ -87,6 +88,7 @@
 #define MSG_LEAVE_ROOM "LEAVE_ROOM"
 #define MSG_START_EXAM "START_EXAM"
 #define MSG_GET_EXAM "GET_EXAM"
+#define MSG_SAVE_ANSWER "SAVE_ANSWER"
 #define MSG_SUBMIT_EXAM "SUBMIT_EXAM"
 #define MSG_VIEW_RESULT "VIEW_RESULT"
 #define MSG_PING "PING"

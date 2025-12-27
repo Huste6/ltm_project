@@ -466,6 +466,46 @@ int db_get_room_participant_count(Database *db, const char *room_id)
 }
 
 /**
+ * @brief Get room start time as UNIX timestamp
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return start_time as time_t (UNIX timestamp), -1 on error or if not started
+ */
+time_t db_get_room_start_time(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT UNIX_TIMESTAMP(start_time) FROM rooms WHERE room_id='%s'", room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    time_t start_time = -1;
+
+    if (row && row[0])
+    {
+        start_time = (time_t)atoll(row[0]);
+    }
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return start_time;
+}
+
+/**
  * @brief Get leaderboard for room
  * @param db Database structure
  * @param room_id Room ID
@@ -681,6 +721,114 @@ int db_finish_room(Database *db, const char *room_id)
     }
 
     return result == 0 ? 0 : -1;
+}
+
+/**
+ * @brief Check and finish rooms that exceeded their time limit
+ * @param db Pointer to Database
+ * @return Number of rooms finished, or -1 on error
+ */
+int db_check_and_finish_timed_out_rooms(Database *db)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    // Find IN_PROGRESS rooms that exceeded time limit
+    const char *query =
+        "UPDATE rooms "
+        "SET status='FINISHED', finish_time=NOW() "
+        "WHERE status='IN_PROGRESS' "
+        "AND TIMESTAMPADD(MINUTE, time_limit_minutes, start_time) < NOW()";
+
+    int result = mysql_query(db->conn, query);
+
+    if (result != 0)
+    {
+        fprintf(stderr, "[DB] Error checking timed out rooms: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    // Get number of affected rows
+    int finished_count = (int)mysql_affected_rows(db->conn);
+
+    pthread_mutex_unlock(&db->mutex);
+
+    return finished_count;
+}
+
+/**
+ * @brief Check if a room has exceeded its time limit
+ * @param db Pointer to Database
+ * @param room_id Room ID
+ * @return 1 if room is expired, 0 if not expired, -1 on error
+ */
+int db_is_room_expired(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[512];
+
+    // First: Check if room exists
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM rooms WHERE room_id='%s'",
+             room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB] Query error: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        fprintf(stderr, "[DB] Store result error: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int room_exists = row && atoi(row[0]) > 0 ? 1 : 0;
+    mysql_free_result(result);
+
+    // Room doesn't exist
+    if (!room_exists)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1; // Error: room not found
+    }
+
+    // Second: Check if room is expired
+    snprintf(query, sizeof(query),
+             "SELECT COUNT(*) FROM rooms "
+             "WHERE room_id='%s' "
+             "AND status='IN_PROGRESS' "
+             "AND TIMESTAMPADD(MINUTE, time_limit_minutes, start_time) < NOW()",
+             room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        fprintf(stderr, "[DB] Query error: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        fprintf(stderr, "[DB] Store result error: %s\n", mysql_error(db->conn));
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    row = mysql_fetch_row(result);
+    int is_expired = row && atoi(row[0]) > 0 ? 1 : 0;
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return is_expired; // 1 if expired, 0 if not expired
 }
 
 /**

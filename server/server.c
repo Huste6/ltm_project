@@ -1,7 +1,7 @@
 #include "server.h"
 #include "auth/auth.h"
 #include "room/room.h"
-// #include "exam/exam.h"
+#include "exam/exam.h"
 // #include "practice/practice.h"
 #include "logger/logger.h"
 
@@ -103,12 +103,103 @@ int server_init(Server *server, int port)
 }
 
 /**
+ * @brief Cleanup thread for timed out rooms
+ * Runs every 10 seconds to check for expired rooms and auto-submit
+ */
+void *cleanup_timed_out_rooms(void *arg)
+{
+    Server *server = (Server *)arg;
+    printf("[CLEANUP_THREAD] Started\n");
+
+    while (server->running)
+    {
+        sleep(10); // Check every 10 seconds
+
+        // Check and finish timed out rooms
+        int finished_count = db_check_and_finish_timed_out_rooms(server->db);
+
+        if (finished_count > 0)
+        {
+            printf("[CLEANUP_THREAD] Found %d timed-out room(s), processing auto-submit...\n", finished_count);
+
+            // Get list of rooms that just finished
+            // For each finished room, force-submit all clients who haven't submitted
+            pthread_mutex_lock(&server->clients_mutex);
+
+            // Track which rooms we've processed to broadcast once per room
+            char processed_rooms[MAX_CLIENTS][32];
+            int processed_count = 0;
+
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                ClientSession *client = &server->clients[i];
+
+                // Skip inactive clients or clients not in exam
+                if (!client->active || client->state != STATE_IN_EXAM)
+                    continue;
+
+                // Check if client's room is finished (timed out)
+                int status = db_get_room_status(server->db, client->current_room);
+                if (status == 2) // FINISHED
+                {
+                    // Check if we already broadcasted to this room
+                    int already_broadcasted = 0;
+                    for (int j = 0; j < processed_count; j++)
+                    {
+                        if (strcmp(processed_rooms[j], client->current_room) == 0)
+                        {
+                            already_broadcasted = 1;
+                            break;
+                        }
+                    }
+
+                    // Broadcast timeout notification once per room
+                    if (!already_broadcasted && processed_count < MAX_CLIENTS)
+                    {
+                        char timeout_msg[128];
+                        snprintf(timeout_msg, sizeof(timeout_msg), "230 TIME_EXPIRED %s\n", client->current_room);
+
+                        printf("[CLEANUP_THREAD] Broadcasting timeout to room '%s'\n", client->current_room);
+                        broadcast_to_room(server, client->current_room, timeout_msg);
+
+                        // Mark room as processed
+                        strncpy(processed_rooms[processed_count], client->current_room, 31);
+                        processed_rooms[processed_count][31] = '\0';
+                        processed_count++;
+                    }
+
+                    // Force submit if not already submitted
+                    if (!client->has_submitted)
+                    {
+                        printf("[CLEANUP_THREAD] Auto-submitting for user '%s' in room '%s'\n",
+                               client->username, client->current_room);
+
+                        force_submit_exam(server, client, client->current_room);
+                    }
+                }
+            }
+
+            pthread_mutex_unlock(&server->clients_mutex);
+
+            printf("[CLEANUP_THREAD] Finished %d room(s) due to timeout\n", finished_count);
+        }
+    }
+
+    printf("[CLEANUP_THREAD] Stopped\n");
+    return NULL;
+}
+
+/**
  * @brief Start the server main loop
  */
 void server_start(Server *server)
 {
     printf("=== EXAM SERVER STARTED ===\n");
     log_event(LOG_INFO, NULL, "SERVER", "Exam server started successfully");
+
+    // Start cleanup thread for timeout auto-finish
+    pthread_create(&server->cleanup_thread_id, NULL, cleanup_timed_out_rooms, server);
+    pthread_detach(server->cleanup_thread_id);
 
     while (server->running)
     {
@@ -242,6 +333,10 @@ void *handle_client(void *arg)
         else if (strcmp(msg.command, MSG_GET_EXAM) == 0)
         {
             handle_get_exam(g_server, client, &msg);
+        }
+        else if (strcmp(msg.command, MSG_SAVE_ANSWER) == 0)
+        {
+            handle_save_answer(g_server, client, &msg);
         }
         else if (strcmp(msg.command, MSG_SUBMIT_EXAM) == 0)
         {
