@@ -9,7 +9,8 @@
 
 #define MAX_CLIENTS 100
 #define SERVER_PORT 8888
-#define SESSION_TIMEOUT_MINUTES 30
+#define SESSION_TIMEOUT_MINUTES 120
+#define MAX_QUESTIONS 50
 
 /**
  * @brief Client states
@@ -37,6 +38,14 @@ typedef struct ClientSession
     time_t last_activity;
     pthread_t thread_id;
     int active;
+
+    // Auto-submit on timeout support
+    // Map: question_id -> answer (A/B/C/D or 0 if unanswered)
+    // Key is question_id (from DB), value is answer
+    int question_ids[MAX_QUESTIONS];  // Store actual DB question IDs
+    char exam_answers[MAX_QUESTIONS]; // Answers indexed by position in question_ids array
+    int exam_total_questions;
+    int has_submitted;
 } ClientSession;
 
 typedef struct Server
@@ -46,6 +55,7 @@ typedef struct Server
     ClientSession clients[MAX_CLIENTS];
     pthread_mutex_t clients_mutex;
     int running;
+    pthread_t cleanup_thread_id; // Thread for timeout auto-finish
 } Server;
 
 // Server lifecycle

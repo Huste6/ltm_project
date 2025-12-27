@@ -71,7 +71,6 @@ CREATE TABLE rooms (
     INDEX idx_creator (creator),
     FOREIGN KEY (creator) REFERENCES users(username) ON DELETE CASCADE,
     CHECK (num_questions >= 5 AND num_questions <= 50),
-    CHECK (time_limit_minutes >= 5 AND time_limit_minutes <= 120)
 ) ENGINE=InnoDB;
 
 -- ==========================================

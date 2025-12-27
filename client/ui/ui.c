@@ -44,7 +44,8 @@ void ui_print_menu_authenticated()
     printf("2. Join Room\n");
     printf("3. List Rooms\n");
     printf("4. View Result\n");
-    printf("5. Logout\n");
+    printf("5. Practice Mode\n");
+    printf("6. Logout\n");
     printf("0. Exit\n");
     printf("Choice: ");
 }
@@ -81,18 +82,6 @@ void ui_print_menu_room(int is_creator)
         printf("1. Leave Room\n");
     }
 
-    printf("Choice: ");
-}
-
-/**
- * @brief Print exam menu
- */
-void ui_print_menu_exam()
-{
-    printf("\n=== EXAM IN PROGRESS ===\n");
-    printf("1. Get Exam Questions\n");
-    printf("2. Submit Exam\n");
-    printf("0. Exit Exam\n");
     printf("Choice: ");
 }
 
@@ -144,4 +133,13 @@ void ui_get_input(const char *prompt, char *buffer, size_t size)
     {
         buffer[len - 1] = '\0';
     }
+}
+void ui_print_menu_exam()
+{
+    printf("\n========================================\n");
+    printf("EXAM MENU\n");
+    printf("========================================\n");
+    printf("1. Submit Exam\n");
+    printf("2. Modify Answer\n");
+    printf("Choice: ");
 }

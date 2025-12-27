@@ -57,9 +57,10 @@ void handle_create_room(Server *server, ClientSession *client, Message *msg)
         return;
     }
 
-    // Generate unique room ID
+    // Generate unique room ID (last 6 digits of timestamp)
     char room_id[MAX_ROOM_ID_LEN];
-    snprintf(room_id, sizeof(room_id), "%ld", time(NULL)); // Use timestamp as room ID
+    long timestamp = time(NULL);
+    snprintf(room_id, sizeof(room_id), "%06ld", timestamp % 1000000); // Last 6 digits only
 
     // Create room in database (stored procedure handles question selection)
     if (db_create_room(server->db, room_id, room_name, client->username, num_questions, time_limit) < 0)

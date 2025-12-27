@@ -39,6 +39,23 @@ void handle_view_result(Server *server, ClientSession *client, Message *msg);
 void handle_get_exam(Server *server, ClientSession *client, Message *msg);
 
 /**
+ * @brief Xử lý lưu đáp án từng câu (incremental save)
+ * @param server Pointer tới Server instance
+ * @param client Pointer tới ClientSession
+ * @param msg Message đã parse (SAVE_ANSWER room_id|question_index|option)
+ *
+ * Flow:
+ * 1. Check authentication
+ * 2. Check user in room
+ * 3. Check room IN_PROGRESS
+ * 4. Validate question_index (0..total-1)
+ * 5. Validate option (A, B, C, or D)
+ * 6. Store in client->exam_answers[index]
+ * 7. Response: 160 ANSWER_SAVED
+ */
+void handle_save_answer(Server *server, ClientSession *client, Message *msg);
+
+/**
  * @brief Xử lý bắt đầu bài thi (chỉ creator)
  * @param server Pointer tới Server instance
  * @param client Pointer tới ClientSession
@@ -79,5 +96,14 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg);
  * @param message Message cần broadcast
  */
 void broadcast_to_room(Server *server, const char *room_id, const char *message);
+
+/**
+ * @brief Force submit exam for timeout (internal use by cleanup thread)
+ * @param server Server instance
+ * @param client Client session to force submit
+ * @param room_id Room ID
+ * @return 0 on success, -1 on error
+ */
+int force_submit_exam(Server *server, ClientSession *client, const char *room_id);
 
 #endif // EXAM_H
