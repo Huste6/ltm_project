@@ -120,7 +120,7 @@ int main()
 
                         if (strstr(buffer, "125 START_OK") != NULL)
                         {
-                            printf("\nExam has started! Loading questions...\n");
+                            printf("\nExam has started! Questions loaded...\n");
                             client.state = CLIENT_IN_EXAM;
                             break;
                         }

@@ -823,24 +823,28 @@ void handle_get_exam(Client *client)
             {
                 // Timeout occurred - exit loop immediately
                 ui_show_error("Time expired. Cannot save more answers.");
-                client->state = CLIENT_AUTHENTICATED;
-                memset(client->current_room, 0, sizeof(client->current_room));
                 printf("\n========================================\n");
-                printf("Exam time limit exceeded.\n");
-                printf("Your %d saved answer(s) will be graded.\n", i);
+                printf("You have answered %d question(s).\n", i);
+                printf("Your answers will be submitted and graded.\n");
                 printf("========================================\n");
+
+                // Auto-submit exam
+                printf("\nSubmitting exam...\n");
+                handle_submit_exam(client);
                 return;
             }
             else if (save_resp.code == 231) // CODE_INVALID_STATE (room not in progress)
             {
                 // Room not in progress - likely timed out
                 ui_show_error("Time expired. Exam has ended.");
-                client->state = CLIENT_AUTHENTICATED;
-                memset(client->current_room, 0, sizeof(client->current_room));
                 printf("\n========================================\n");
-                printf("Exam time limit exceeded.\n");
-                printf("Your %d saved answer(s) will be graded.\n", i);
+                printf("You have answered %d question(s).\n", i);
+                printf("Your answers will be submitted and graded.\n");
                 printf("========================================\n");
+
+                // Auto-submit exam
+                printf("\nSubmitting exam...\n");
+                handle_submit_exam(client);
                 return;
             }
             else
