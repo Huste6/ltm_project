@@ -431,6 +431,27 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
 
     const char *room_id = msg->params[0];
 
+    // Check already submitted FIRST (before checking room status)
+    // This allows users to see results even after room is finished
+    if (client->has_submitted)
+    {
+        // Return existing score
+        char *result = db_get_exam_result(server->db, room_id, client->username);
+        if (result)
+        {
+            char response[128];
+            snprintf(response, sizeof(response), "%s", result);
+            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, response);
+            free(result);
+        }
+        else
+        {
+            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, "Already submitted");
+        }
+        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Already submitted");
+        return;
+    }
+
     // Check room exists
     int status = db_get_room_status(server->db, room_id);
     if (status < 0)
@@ -477,26 +498,6 @@ void handle_submit_exam(Server *server, ClientSession *client, Message *msg)
     {
         send_error_or_response(client->socket_fd, CODE_NOT_IN_ROOM, room_id);
         db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Not in room");
-        return;
-    }
-
-    // Check already submitted
-    if (client->has_submitted)
-    {
-        // Return existing score
-        char *result = db_get_exam_result(server->db, room_id, client->username);
-        if (result)
-        {
-            char response[128];
-            snprintf(response, sizeof(response), "%s", result);
-            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, response);
-            free(result);
-        }
-        else
-        {
-            send_error_or_response(client->socket_fd, CODE_ALREADY_SUBMITTED, "Already submitted");
-        }
-        db_log_activity(server->db, "WARNING", client->username, "SUBMIT_EXAM", "Already submitted");
         return;
     }
 
