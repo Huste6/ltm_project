@@ -620,13 +620,13 @@ void display_exam_questions(const char *json_data, int *question_ids, int total_
 
     while ((search = strstr(search, "\"content\": \"")) != NULL && q_num <= total_questions)
     {
-        const char *content_start = search + 12;
+        const char *content_start = search + 12; // Move past "content": "
         const char *content_end = strstr(content_start, "\"");
 
         if (content_end)
         {
             printf("\nQuestion %d: ", q_num);
-            fwrite(content_start, 1, content_end - content_start, stdout);
+            fwrite(content_start, 1, content_end - content_start, stdout); // Print question content
             printf("\n");
 
             // Find and display options (already formatted by server)
@@ -728,6 +728,7 @@ void handle_answer_questions(Client *client, const int *question_ids, int total_
             continue;
         }
 
+        // Receive response for SAVE_ANSWER
         Response save_resp;
         if (client_receive_response(client, &save_resp) < 0)
         {
@@ -735,24 +736,44 @@ void handle_answer_questions(Client *client, const int *question_ids, int total_
             continue;
         }
 
-        if (save_resp.code == 160) // CODE_ANSWER_SAVED
+        if (save_resp.code == CODE_ANSWER_SAVED)
         {
             printf("✓ Answer %d saved\n", i + 1);
         }
-        else if (save_resp.code == 230 || save_resp.code == 231)
+        else if (save_resp.code == CODE_TIME_EXPIRED)
         {
-            // TIME_EXPIRED or INVALID_STATE - exam ended
-            ui_show_error("Exam time expired. Your submitted answers will be graded by the server.");
+            // Exam timed out during answering
             printf("\n========================================\n");
-            printf("You have answered %d question(s).\n", i);
+            printf("TIME EXPIRED - Exam has ended!\n");
+            printf("You have answered %d out of %d question(s).\n", i, total_questions);
             printf("========================================\n");
+
+            // Reset client state back to authenticated
+            client->state = CLIENT_AUTHENTICATED;
+            memset(client->current_room, 0, sizeof(client->current_room));
+            client->is_creator = 0;
+
+            return;
+        }
+        else if (save_resp.code == CODE_NOT_IN_PROGRESS)
+        {
+            // Room no longer in progress
+            printf("\n========================================\n");
+            printf("EXAM ENDED - Room is no longer in progress!\n");
+            printf("You have answered %d out of %d question(s).\n", i, total_questions);
+            printf("========================================\n");
+
+            // Reset client state back to authenticated
+            client->state = CLIENT_AUTHENTICATED;
+            memset(client->current_room, 0, sizeof(client->current_room));
+            client->is_creator = 0;
+
             return;
         }
         else
         {
             char error[256];
-            snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
-                     save_resp.code, save_resp.message);
+            snprintf(error, sizeof(error), "Failed to save answer: [%d] %s", save_resp.code, save_resp.message);
             ui_show_error(error);
         }
     }
@@ -800,7 +821,7 @@ void handle_get_exam(Client *client)
         return;
     }
 
-    if (resp.code == 150) // CODE_EXAM_DATA
+    if (resp.code == CODE_EXAM_DATA && resp.data)
     {
         ui_show_success("Exam questions received!");
 
@@ -809,12 +830,13 @@ void handle_get_exam(Client *client)
         int question_ids[100];
         memset(question_ids, 0, sizeof(question_ids));
 
+        // Extract question IDs from JSON
         const char *search = resp.data;
-        while ((search = strstr(search, "\"question_id\": ")) != NULL && total_questions < 100)
+        while ((search = strstr(search, "\"question_id\": ")) != NULL)
         {
-            question_ids[total_questions] = atoi(search + 15);
+            question_ids[total_questions] = atoi(search + 15); // 15 is length of "\"question_id\": "
             total_questions++;
-            search = search + 16;
+            search = search + 16; // Move past current question_id, 16 is length of "\"question_id\": " plus one digit
         }
 
         if (total_questions <= 0)
@@ -828,6 +850,15 @@ void handle_get_exam(Client *client)
 
         // Collect answers
         handle_answer_questions(client, question_ids, total_questions);
+
+        // If timeout occurred, client state is already reset to CLIENT_AUTHENTICATED
+        // Exit without showing exam menu
+        if (client->state != CLIENT_IN_EXAM)
+        {
+            free(resp.data);
+            printf("\nReturning to main menu.\n");
+            return;
+        }
 
         // Show post-exam menu
         int post_exam_choice = -1;
@@ -916,6 +947,7 @@ void handle_submit_exam(Client *client)
         // Return to menu
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room));
+        client->is_creator = 0;
         printf("\nYou have been returned to the main menu.\n");
     }
     else if (resp.code == 131) // CODE_ALREADY_SUBMITTED
@@ -926,12 +958,19 @@ void handle_submit_exam(Client *client)
         // Return to menu
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room));
+        client->is_creator = 0;
     }
     else if (resp.code == 230) // CODE_TIME_EXPIRED
     {
-        ui_show_error("Exam time expired. Your submitted answers will be graded by server.");
+        printf("\n========================================\n");
+        printf("TIME EXPIRED - Exam has ended!\n");
+        printf("Your saved answers will be graded by the server.\n");
+        printf("========================================\n");
+
+        // Return to menu
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room));
+        client->is_creator = 0;
     }
     else
     {
@@ -942,6 +981,7 @@ void handle_submit_exam(Client *client)
         // Return to menu
         client->state = CLIENT_AUTHENTICATED;
         memset(client->current_room, 0, sizeof(client->current_room));
+        client->is_creator = 0;
     }
 }
 

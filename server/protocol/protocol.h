@@ -54,8 +54,7 @@
 #define CODE_ROOM_FULL 228        // Phòng đầy
 #define CODE_EXAM_STARTED 124     // Exam bắt đầu
 #define CODE_EXAM_FINISHED 125    // Exam kết thúc
-#define CODE_NOT_ALLOWED 229      // Không có quyền
-#define CODE_INVALID_STATE 231    // Trạng thái không hợp lệ
+#define CODE_NOT_IN_PROGRESS 231  // Trạng thái phòng không còn đang thi
 
 // Submit Errors
 #define CODE_TIME_EXPIRED 230 // Hết giờ

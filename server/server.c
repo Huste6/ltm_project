@@ -130,6 +130,7 @@ void *cleanup_timed_out_rooms(void *arg)
             char processed_rooms[MAX_CLIENTS][32];
             int processed_count = 0;
 
+            // STEP 1: Force submit ALL users first (before broadcasting)
             for (int i = 0; i < MAX_CLIENTS; i++)
             {
                 ClientSession *client = &server->clients[i];
@@ -142,27 +143,19 @@ void *cleanup_timed_out_rooms(void *arg)
                 int status = db_get_room_status(server->db, client->current_room);
                 if (status == 2) // FINISHED
                 {
-                    // Check if we already broadcasted to this room
-                    int already_broadcasted = 0;
+                    // Track rooms we need to broadcast to
+                    int already_tracked = 0;
                     for (int j = 0; j < processed_count; j++)
                     {
                         if (strcmp(processed_rooms[j], client->current_room) == 0)
                         {
-                            already_broadcasted = 1;
+                            already_tracked = 1;
                             break;
                         }
                     }
 
-                    // Broadcast timeout notification once per room
-                    if (!already_broadcasted && processed_count < MAX_CLIENTS)
+                    if (!already_tracked && processed_count < MAX_CLIENTS)
                     {
-                        char timeout_msg[128];
-                        snprintf(timeout_msg, sizeof(timeout_msg), "230 TIME_EXPIRED %s\n", client->current_room);
-
-                        printf("[CLEANUP_THREAD] Broadcasting timeout to room '%s'\n", client->current_room);
-                        broadcast_to_room(server, client->current_room, timeout_msg);
-
-                        // Mark room as processed
                         strncpy(processed_rooms[processed_count], client->current_room, 31);
                         processed_rooms[processed_count][31] = '\0';
                         processed_count++;
@@ -177,6 +170,16 @@ void *cleanup_timed_out_rooms(void *arg)
                         force_submit_exam(server, client, client->current_room);
                     }
                 }
+            }
+
+            // STEP 2: After ALL submissions complete, broadcast TIME_EXPIRED
+            for (int i = 0; i < processed_count; i++)
+            {
+                char timeout_msg[128];
+                snprintf(timeout_msg, sizeof(timeout_msg), "230 TIME_EXPIRED %s\n", processed_rooms[i]);
+
+                printf("[CLEANUP_THREAD] Broadcasting timeout to room '%s'\n", processed_rooms[i]);
+                broadcast_to_room(server, processed_rooms[i], timeout_msg);
             }
 
             pthread_mutex_unlock(&server->clients_mutex);

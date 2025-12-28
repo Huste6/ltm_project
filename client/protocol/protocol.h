@@ -26,6 +26,7 @@
 // Exam & Submit Codes
 #define CODE_SUBMIT_OK 130         // Nộp bài lần đầu
 #define CODE_ALREADY_SUBMITTED 131 // Đã nộp rồi
+#define CODE_ANSWER_SAVED 160      // Lưu đáp án thành công
 
 // Data Transfer Codes
 #define CODE_DATA 140            // Dữ liệu luyện tập
@@ -51,6 +52,9 @@
 #define CODE_NOT_CREATOR 226      // Không phải người tạo
 #define CODE_NOT_IN_ROOM 227      // Không ở trong phòng
 #define CODE_ROOM_FULL 228        // Phòng đầy
+#define CODE_EXAM_STARTED 124     // Exam bắt đầu
+#define CODE_EXAM_FINISHED 125    // Exam kết thúc
+#define CODE_NOT_IN_PROGRESS 231  // Trạng thái phòng không còn đang thi
 
 // Submit Errors
 #define CODE_TIME_EXPIRED 230 // Hết giờ

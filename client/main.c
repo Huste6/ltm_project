@@ -127,19 +127,6 @@ int main()
                             client.state = CLIENT_IN_EXAM;
                             break;
                         }
-                        else if (strstr(buffer, "230 TIME_EXPIRED") != NULL)
-                        {
-                            printf("\n========================================\n");
-                            printf("TIME EXPIRED - Exam has ended!\n");
-                            printf("Your saved answers will be graded.\n");
-                            printf("========================================\n");
-
-                            client.state = CLIENT_AUTHENTICATED;
-                            memset(client.current_room, 0, sizeof(client.current_room));
-                            client.is_creator = 0;
-                            ui_wait_enter();
-                            break;
-                        }
                     }
 
                     // ===== EVENT: USER INPUT =====
