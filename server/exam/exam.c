@@ -73,18 +73,20 @@ void handle_get_exam(Server *server, ClientSession *client, Message *msg)
 
     // Parse JSON to extract question_ids and count questions
     int question_count = 0;
-    const char *search = exam_json;
+    const char *search = exam_json; // pointer for searching, scan through JSON
     const char *id_start;
 
-    // Reset question arrays
+    // Reset question arrays, make sure no stale data
     memset(client->question_ids, 0, sizeof(client->question_ids));
     memset(client->exam_answers, 0, sizeof(client->exam_answers));
 
+    // Extract question_ids from JSON to map to client's answer buffer, serve when client MODIFY answer
+    // Index of the array corresponds to question order in exam
     while ((search = strstr(search, "\"question_id\": ")) != NULL && question_count < MAX_QUESTIONS)
     {
         id_start = search + 15; // Move past "\"question_id\": "
         int question_id = atoi(id_start);
-        client->question_ids[question_count] = question_id;
+        client->question_ids[question_count] = question_id; // Store question_id in client's array
         question_count++;
         search = id_start + 1;
     }
@@ -149,7 +151,7 @@ void handle_save_answer(Server *server, ClientSession *client, Message *msg)
     // Check room is IN_PROGRESS (status 1 = IN_PROGRESS)
     if (status != 1)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_STATE, "Room not in progress");
+        send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, "Room not in progress");
         return;
     }
 
@@ -180,15 +182,7 @@ void handle_save_answer(Server *server, ClientSession *client, Message *msg)
     // Check user is in exam state
     if (client->state != STATE_IN_EXAM)
     {
-        send_error_or_response(client->socket_fd, CODE_INVALID_STATE, "Not in exam state");
-        return;
-    }
-
-    if (client->has_submitted)
-    {
-        send_error_or_response(client->socket_fd,
-                               CODE_INVALID_STATE,
-                               "Already submitted");
+        send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, "Not in exam state");
         return;
     }
 
