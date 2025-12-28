@@ -14,7 +14,6 @@ int main()
     int running = 1;
 
     ui_clear_screen();
-    ui_print_banner();
 
     // Connect to server
     if (client_connect(&client, SERVER_IP, SERVER_PORT) < 0)

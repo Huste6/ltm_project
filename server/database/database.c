@@ -535,10 +535,9 @@ char *db_get_room_leaderboard(Database *db, const char *room_id)
         return NULL;
     }
 
-    // Build JSON
-    // json: {"leaderboard":[{"rank":1,"username":"user1","score":8,"total":10,"submit_time":"2024-10-01 12:00:00", "time_taken":120},...]}
-    char *json = malloc(16384);
-    strcpy(json, "{\n  \"leaderboard\":[\n");
+    // Build message
+    char *leaderboard = malloc(16384);
+    strcpy(leaderboard, "\n========== LEADERBOARD ==========\n\n");
 
     MYSQL_ROW row;
     int rank = 1;
@@ -546,20 +545,17 @@ char *db_get_room_leaderboard(Database *db, const char *room_id)
     {
         char entry[512];
         snprintf(entry, sizeof(entry),
-                 "{\"rank\":%d,\"username\":\"%s\",\"score\":%s,"
-                 "\"total\":%s,\"submit_time\":\"%s\",\"time_taken\":%s},",
-                 rank++, row[0], row[1], row[2], row[3], row[4]);
-        strcat(json, "    ");
-        strcat(json, entry);
-        strcat(json, "\n");
+                 "Rank %d: %s\n  Score: %s/%s\n  Time Taken: %ss\n  Submitted: %s\n\n",
+                 rank++, row[0], row[1], row[2], row[4], row[3]);
+        strcat(leaderboard, entry);
     }
 
-    strcat(json, "]}");
+    strcat(leaderboard, "=================================\n");
 
     mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
 
-    return json;
+    return leaderboard;
 }
 
 /**

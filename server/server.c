@@ -270,6 +270,11 @@ void *handle_client(void *arg)
     char buffer[MAX_MESSAGE_LEN];
 
     printf("[Thread %lu] Handling client socket %d\n", pthread_self(), client->socket_fd);
+    
+    // Send welcome message to client
+    send_error_or_response(client->socket_fd, 999, 
+        "Welcome to Quiz App!");
+    
     while (client->active && g_server->running)
     {
         memset(buffer, 0, sizeof(buffer));

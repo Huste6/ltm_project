@@ -48,10 +48,30 @@ void handle_register(Client *client)
     {
         ui_show_success("Registration successful! You can now login.");
     }
+    else if (response.code == CODE_USERNAME_EXISTS)
+    {
+        ui_show_error("Username already exists. Please choose another username.");
+    }
+    else if (response.code == CODE_INVALID_USERNAME)
+    {
+        ui_show_error("Invalid username format. Username must be 3-20 characters, alphanumeric and underscore only.");
+    }
+    else if (response.code == CODE_WEAK_PASSWORD)
+    {
+        ui_show_error("Weak password. Password must be at least 8 characters with uppercase, lowercase, and digit.");
+    }
+    else if (response.code == CODE_SYNTAX_ERROR)
+    {
+        ui_show_error("Syntax error. Please try again.");
+    }
+    else if (response.code == CODE_INTERNAL_ERROR)
+    {
+        ui_show_error("Internal server error. Please try again later.");
+    }
     else
     {
         char msg[512];
-        snprintf(msg, sizeof(msg), "Registration failed: %s", response.message);
+        snprintf(msg, sizeof(msg), "Registration failed [%d]: %s", response.code, response.message);
         ui_show_error(msg);
     }
 }
@@ -95,10 +115,34 @@ void handle_login(Client *client)
 
         printf("Session ID: %s\n", client->session_id);
     }
+    else if (response.code == CODE_ACCOUNT_NOT_FOUND)
+    {
+        ui_show_error("Account not found. Please register first.");
+    }
+    else if (response.code == CODE_WRONG_PASSWORD)
+    {
+        ui_show_error("Invalid credentials. Wrong password.");
+    }
+    else if (response.code == CODE_ACCOUNT_LOCKED)
+    {
+        ui_show_error("Your account is locked. Please contact administrator.");
+    }
+    else if (response.code == CODE_ALREADY_LOGGED)
+    {
+        ui_show_error("User already logged in elsewhere. Please logout from other session first.");
+    }
+    else if (response.code == CODE_SYNTAX_ERROR)
+    {
+        ui_show_error("Syntax error. Please try again.");
+    }
+    else if (response.code == CODE_INTERNAL_ERROR)
+    {
+        ui_show_error("Internal server error. Please try again later.");
+    }
     else
     {
         char error[512];
-        snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
+        snprintf(error, sizeof(error), "Login failed [%d]: %s", response.code, response.message);
         ui_show_error(error);
     }
 }
@@ -132,10 +176,21 @@ void handle_logout(Client *client)
         memset(client->username, 0, sizeof(client->username));
         memset(client->session_id, 0, sizeof(client->session_id));
     }
+    else if (response.code == CODE_NOT_LOGGED)
+    {
+        ui_show_error("You are not logged in.");
+    }
+    else if (response.code == CODE_SESSION_EXPIRED)
+    {
+        ui_show_error("Your session has expired. Please login again.");
+        client->state = CLIENT_CONNECTED;
+        memset(client->username, 0, sizeof(client->username));
+        memset(client->session_id, 0, sizeof(client->session_id));
+    }
     else
     {
         char error[512];
-        snprintf(error, sizeof(error), "[%d] %s", response.code, response.message);
+        snprintf(error, sizeof(error), "Logout failed [%d]: %s", response.code, response.message);
         ui_show_error(error);
     }
 }

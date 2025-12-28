@@ -44,6 +44,21 @@ int client_connect(Client *client, const char *host, int port)
     }
 
     client->state = CLIENT_CONNECTED;
+    
+    // Receive welcome message from server
+    char buffer[BUFFER_SIZE];
+    int bytes = recv_line(client->socket_fd, buffer, sizeof(buffer));
+    if (bytes > 0)
+    {
+        // Parse and display welcome message
+        // Format: "999 Welcome message\n"
+        char *space = strchr(buffer, ' ');
+        if (space)
+        {
+            printf("\n%s\n", space + 1); // Print message after the code
+        }
+    }
+    
     return 0;
 }
 
