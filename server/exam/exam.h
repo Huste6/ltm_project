@@ -106,4 +106,6 @@ void broadcast_to_room(Server *server, const char *room_id, const char *message)
  */
 int force_submit_exam(Server *server, ClientSession *client, const char *room_id);
 
+// Cleanup thread (defined in exam.c)
+void *cleanup_timed_out_rooms(void *arg);
 #endif // EXAM_H
