@@ -1238,8 +1238,8 @@ void handle_practice(Client *client)
         // Update state
         client->state = CLIENT_IN_PRACTICE;
 
-        // Collect answers
-        char answers[512] = "";
+        // Collect answers and save each one immediately
+        int answers_saved = 0;
         for (int i = 0; i < total_questions; i++)
         {
             char choice;
@@ -1254,35 +1254,144 @@ void handle_practice(Client *client)
                     getchar();
                     continue;
                 }
-                getchar();
 
+                // Convert to uppercase
                 if (choice >= 'a' && choice <= 'z')
                     choice -= 32;
 
+                // Validate answer is A-D
                 if (choice >= 'A' && choice <= 'D')
+                {
+                    // Clear remaining input in buffer
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ; // Consume rest of line
                     valid = 1;
+                }
                 else
+                {
+                    // Clear remaining input in buffer
+                    int c;
+                    while ((c = getchar()) != '\n' && c != EOF)
+                        ;
                     printf("Invalid! Please use A, B, C, or D.\n");
+                }
             }
 
-            if (i > 0)
-                strcat(answers, ",");
+            // Send SAVE_PRACTICE_ANSWER immediately
+            char question_index_str[16];
+            char choice_str[2];
+            snprintf(question_index_str, sizeof(question_index_str), "%d", i);
+            choice_str[0] = choice;
+            choice_str[1] = '\0';
 
-            char answer_str[2] = {choice, '\0'};
-            strcat(answers, answer_str);
+            const char *save_params[] = {client->practice_id, question_index_str, choice_str};
 
-            printf("✓ Answer %d saved\n", i + 1);
+            if (client_create_send_command(client, "SAVE_PRACTICE_ANSWER", save_params, 3) < 0)
+            {
+                ui_show_error("Failed to save answer");
+                continue;
+            }
+
+            // Receive response for SAVE_PRACTICE_ANSWER
+            Response save_resp;
+            if (client_receive_response(client, &save_resp) < 0)
+            {
+                ui_show_error("Failed to receive save response");
+                continue;
+            }
+
+            if (save_resp.code == 160) // CODE_ANSWER_SAVED
+            {
+                printf("✓ Answer %d saved\n", i + 1);
+                answers_saved++;
+            }
+            else if (save_resp.code == 141) // CODE_PRACTICE_RESULT (timeout auto-submit with result)
+            {
+                // Server sent result from timeout auto-submit
+                printf("\n========================================\n");
+                printf("TIME EXPIRED - Practice has ended!\n");
+                printf("========================================\n");
+
+                // Parse score|total|TIMEOUT
+                char temp[256];
+                strncpy(temp, save_resp.message, sizeof(temp) - 1);
+                temp[sizeof(temp) - 1] = '\0';
+
+                char *score_str = strtok(temp, "|");
+                char *total_str = strtok(NULL, "|");
+                char *timeout_flag = strtok(NULL, "|");
+
+                if (score_str && total_str)
+                {
+                    int score = atoi(score_str);
+                    int total = atoi(total_str);
+                    double percentage = (total > 0) ? (score * 100.0 / total) : 0.0;
+
+                    printf("Score: %d/%d (%.1f%%)\n", score, total, percentage);
+
+                    if (percentage >= 80)
+                    {
+                        printf("Excellent! Well done!\n");
+                    }
+                    else if (percentage >= 60)
+                    {
+                        printf("Good job! Keep it up!\n");
+                    }
+                    else if (percentage >= 40)
+                    {
+                        printf("Not bad, but you can do better!\n");
+                    }
+                    else
+                    {
+                        printf("Keep practicing!\n");
+                    }
+                }
+
+                printf("========================================\n");
+
+                // Reset client state back to authenticated
+                client->state = CLIENT_AUTHENTICATED;
+                memset(client->practice_id, 0, sizeof(client->practice_id));
+
+                free(resp.data);
+                printf("\nYou have been returned to the main menu.\n");
+                return;
+            }
+            else if (save_resp.code == 230) // CODE_TIME_EXPIRED (raw timeout)
+            {
+                // Old behavior - just timeout notification
+                printf("\n========================================\n");
+                printf("TIME EXPIRED - Practice has ended!\n");
+                printf("You have answered %d out of %d question(s).\n", answers_saved, total_questions);
+                printf("Your answers have been auto-submitted and graded.\n");
+                printf("========================================\n");
+
+                // Reset client state back to authenticated
+                client->state = CLIENT_AUTHENTICATED;
+                memset(client->practice_id, 0, sizeof(client->practice_id));
+
+                free(resp.data);
+                return;
+            }
+            else
+            {
+                char error[256];
+                snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
+                         save_resp.code, save_resp.message);
+                ui_show_error(error);
+            }
         }
 
         printf("\n========================================\n");
-        printf("All answers collected!\n");
+        printf("All answers saved!\n");
         printf("========================================\n");
 
         free(resp.data);
 
         // Submit practice automatically
         printf("\nSubmitting practice...\n");
-        handle_submit_practice(client, answers);
+        handle_submit_practice(client);
     }
     else
     {
@@ -1295,7 +1404,7 @@ void handle_practice(Client *client)
 /**
  * @brief Handle SUBMIT_PRACTICE command
  */
-void handle_submit_practice(Client *client, const char *answers)
+void handle_submit_practice(Client *client)
 {
     printf("\n=== SUBMIT PRACTICE ===\n");
 
@@ -1307,9 +1416,9 @@ void handle_submit_practice(Client *client, const char *answers)
 
     ui_show_info("Submitting practice...");
 
-    // Send SUBMIT_PRACTICE command
-    const char *params[] = {client->practice_id, answers};
-    if (client_create_send_command(client, "SUBMIT_PRACTICE", params, 2) < 0)
+    // Send SUBMIT_PRACTICE command (no answers - server uses saved buffer)
+    const char *params[] = {client->practice_id};
+    if (client_create_send_command(client, "SUBMIT_PRACTICE", params, 1) < 0)
     {
         ui_show_error("Failed to send command");
         return;

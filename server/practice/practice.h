@@ -25,6 +25,11 @@ typedef struct Server Server;
 void handle_practice(Server *server, ClientSession *client, Message *msg);
 
 /**
+ * @brief Save practice answer to buffer (for auto-submit on timeout)
+ */
+void handle_save_practice_answer(Server *server, ClientSession *client, Message *msg);
+
+/**
  * @brief Xử lý nộp bài luyện tập
  * @param server Pointer tới Server instance
  * @param client Pointer tới ClientSession
@@ -39,5 +44,10 @@ void handle_practice(Server *server, ClientSession *client, Message *msg);
  * 6. Update client state back to AUTHENTICATED
  */
 void handle_submit_practice(Server *server, ClientSession *client, Message *msg);
+
+/**
+ * @brief Force submit practice on timeout (called by cleanup thread)
+ */
+int force_submit_practice(Server *server, ClientSession *client, const char *practice_id);
 
 #endif // PRACTICE_H

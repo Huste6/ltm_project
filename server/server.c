@@ -272,6 +272,10 @@ void *handle_client(void *arg)
         {
             handle_practice(g_server, client, &msg);
         }
+        else if (strcmp(msg.command, "SAVE_PRACTICE_ANSWER") == 0)
+        {
+            handle_save_practice_answer(g_server, client, &msg);
+        }
         else if (strcmp(msg.command, "SUBMIT_PRACTICE") == 0)
         {
             handle_submit_practice(g_server, client, &msg);

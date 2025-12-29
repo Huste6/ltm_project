@@ -150,7 +150,7 @@ void handle_practice(Client *client);
  * 3. Display result
  * 4. Update client state to AUTHENTICATED
  */
-void handle_submit_practice(Client *client, const char *answers);
+void handle_submit_practice(Client *client);
 
 /**
  * @brief Display exam questions from JSON data
