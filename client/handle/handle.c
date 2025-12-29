@@ -1137,22 +1137,22 @@ void handle_practice(Client *client)
         return;
     }
 
-    if (resp.code == 140) // CODE_DATA
+    if (resp.code == CODE_DATA)
     {
         ui_show_success("Practice questions received!");
 
         // Parse JSON to extract practice_id and time_limit
         const char *practice_id_start = strstr(resp.data, "\"practice_id\":\"");
-        if (!practice_id_start)
+        if (!practice_id_start) // not found
         {
             ui_show_error("Failed to parse practice_id");
             free(resp.data);
             return;
         }
-        practice_id_start += 15;
+        practice_id_start += 15; // Move past "\"practice_id\":\""
         const char *practice_id_end = strstr(practice_id_start, "\"");
         size_t practice_id_len = practice_id_end - practice_id_start;
-        strncpy(client->practice_id, practice_id_start, practice_id_len);
+        strncpy(client->practice_id, practice_id_start, practice_id_len); // Copy practice_id to client
         client->practice_id[practice_id_len] = '\0';
 
         // Extract time_limit
@@ -1187,6 +1187,7 @@ void handle_practice(Client *client)
             const char *content_start = search + 11;
             const char *content_end = strstr(content_start, "\"");
 
+            // find and display question content
             if (content_end)
             {
                 printf("\nQuestion %d: ", q_num);
@@ -1200,18 +1201,19 @@ void handle_practice(Client *client)
                     options_start += 11;
                     const char *option_end = strstr(options_start, "]");
 
+                    // Get single options"
                     if (option_end)
                     {
                         const char *opt_ptr = options_start;
                         while (opt_ptr < option_end)
                         {
-                            const char *opt_start = strstr(opt_ptr, "\"");
-                            if (!opt_start || opt_start >= option_end)
+                            const char *opt_start = strstr(opt_ptr, "\""); // find starting quote
+                            if (!opt_start || opt_start >= option_end)     // no more options
                                 break;
                             opt_start++;
 
-                            const char *opt_close = strstr(opt_start, "\"");
-                            if (!opt_close || opt_close >= option_end)
+                            const char *opt_close = strstr(opt_start, "\""); // find closing quote
+                            if (!opt_close || opt_close >= option_end)       // no more options
                                 break;
 
                             printf("  ");
@@ -1245,6 +1247,7 @@ void handle_practice(Client *client)
             char choice;
             int valid = 0;
 
+            // Keep asking until valid answer
             while (!valid)
             {
                 printf("Answer for question %d (A/B/C/D): ", i + 1);
@@ -1254,26 +1257,19 @@ void handle_practice(Client *client)
                     getchar();
                     continue;
                 }
+                getchar();
 
                 // Convert to uppercase
                 if (choice >= 'a' && choice <= 'z')
                     choice -= 32;
 
-                // Validate answer is A-D
+                // Validate
                 if (choice >= 'A' && choice <= 'D')
                 {
-                    // Clear remaining input in buffer
-                    int c;
-                    while ((c = getchar()) != '\n' && c != EOF)
-                        ; // Consume rest of line
                     valid = 1;
                 }
                 else
                 {
-                    // Clear remaining input in buffer
-                    int c;
-                    while ((c = getchar()) != '\n' && c != EOF)
-                        ;
                     printf("Invalid! Please use A, B, C, or D.\n");
                 }
             }
@@ -1358,22 +1354,6 @@ void handle_practice(Client *client)
                 printf("\nYou have been returned to the main menu.\n");
                 return;
             }
-            else if (save_resp.code == 230) // CODE_TIME_EXPIRED (raw timeout)
-            {
-                // Old behavior - just timeout notification
-                printf("\n========================================\n");
-                printf("TIME EXPIRED - Practice has ended!\n");
-                printf("You have answered %d out of %d question(s).\n", answers_saved, total_questions);
-                printf("Your answers have been auto-submitted and graded.\n");
-                printf("========================================\n");
-
-                // Reset client state back to authenticated
-                client->state = CLIENT_AUTHENTICATED;
-                memset(client->practice_id, 0, sizeof(client->practice_id));
-
-                free(resp.data);
-                return;
-            }
             else
             {
                 char error[256];
@@ -1456,7 +1436,7 @@ void handle_submit_practice(Client *client)
             // Check if timeout occurred
             if (timeout_flag && strcmp(timeout_flag, "TIMEOUT") == 0)
             {
-                printf("⏱️  TIME EXPIRED!\n");
+                printf("TIME EXPIRED!\n");
                 printf("Your answers have been auto-submitted.\n\n");
             }
             else
