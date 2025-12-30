@@ -543,7 +543,7 @@ void handle_start_exam(Client *client)
 
     ui_show_info("Starting exam...");
 
-    // Send command
+    // Send command: START_EXAM room_id\n
     const char *params[] = {client->current_room};
     if (client_create_send_command(client, "START_EXAM", params, 1) < 0)
     {
@@ -551,7 +551,7 @@ void handle_start_exam(Client *client)
         return;
     }
 
-    // Receive response
+    // Receive response: <code> <message>
     Response resp;
     if (client_receive_response(client, &resp) < 0)
     {
@@ -768,7 +768,7 @@ void handle_answer_questions(Client *client, const int *question_ids, int total_
             }
         }
 
-        // Send SAVE_ANSWER immediately
+        // Send SAVE_ANSWER immediately: SAVE_ANSWER room_id question_id option\n
         char question_id_str[16];
         char opt_str[2];
         snprintf(question_id_str, sizeof(question_id_str), "%d", question_ids[i]);

@@ -151,7 +151,7 @@ void handle_save_answer(Server *server, ClientSession *client, Message *msg)
     }
 
     // Check room is IN_PROGRESS (status 1 = IN_PROGRESS)
-    // If NOT in progress → force submit and return result
+    // If NOT in progress → force submit and return result (time expired)
     if (status != 1)
     {
         printf("[SAVE_ANSWER] Room '%s' not in progress (status=%d)\n", room_id, status);
@@ -368,79 +368,30 @@ void *cleanup_timed_out_rooms(void *arg)
     Server *server = (Server *)arg;
     while (server->running)
     {
-        sleep(2); // Check every 2 seconds
+        sleep(2);
 
         // ========== EXAM ROOMS CLEANUP ==========
-        // Check and finish timed out rooms
         int finished_count = db_check_and_finish_timed_out_rooms(server->db);
 
         if (finished_count > 0)
         {
-            printf("[CLEANUP_THREAD] Found %d timed-out room(s), processing auto-submit...\n", finished_count);
-
-            // Get list of rooms that just finished
-            // For each finished room, force-submit all clients who haven't submitted
             pthread_mutex_lock(&server->clients_mutex);
 
-            // Track which rooms we've processed to broadcast once per room
-            char processed_rooms[MAX_CLIENTS][32];
-            int processed_count = 0;
-
-            // STEP 1: Force submit ALL users first (before broadcasting)
+            // Force submit all users (that's it!)
             for (int i = 0; i < MAX_CLIENTS; i++)
             {
                 ClientSession *client = &server->clients[i];
-
-                // Skip inactive clients or clients not in exam
                 if (!client->active || client->state != STATE_IN_EXAM)
                     continue;
 
-                // Check if client's room is finished (timed out)
                 int status = db_get_room_status(server->db, client->current_room);
-                if (status == 2) // FINISHED
+                if (status == 2 && !client->has_submitted)
                 {
-                    // Track rooms we need to broadcast to
-                    int already_tracked = 0;
-                    for (int j = 0; j < processed_count; j++)
-                    {
-                        if (strcmp(processed_rooms[j], client->current_room) == 0)
-                        {
-                            already_tracked = 1;
-                            break;
-                        }
-                    }
-
-                    if (!already_tracked && processed_count < MAX_CLIENTS)
-                    {
-                        strncpy(processed_rooms[processed_count], client->current_room, 31);
-                        processed_rooms[processed_count][31] = '\0';
-                        processed_count++;
-                    }
-
-                    // Force submit if not already submitted
-                    if (!client->has_submitted)
-                    {
-                        printf("[CLEANUP_THREAD] Auto-submitting for user '%s' in room '%s'\n",
-                               client->username, client->current_room);
-
-                        force_submit_exam(server, client, client->current_room);
-                    }
+                    force_submit_exam(server, client, client->current_room);
                 }
             }
 
-            // STEP 2: After ALL submissions complete, broadcast TIME_EXPIRED
-            for (int i = 0; i < processed_count; i++)
-            {
-                char timeout_msg[128];
-                snprintf(timeout_msg, sizeof(timeout_msg), "230 TIME_EXPIRED %s\n", processed_rooms[i]);
-
-                printf("[CLEANUP_THREAD] Broadcasting timeout to room '%s'\n", processed_rooms[i]);
-                broadcast_to_room(server, processed_rooms[i], timeout_msg);
-            }
-
             pthread_mutex_unlock(&server->clients_mutex);
-
-            printf("[CLEANUP_THREAD] Finished %d room(s) due to timeout\n", finished_count);
         }
 
         // ========== PRACTICE SESSIONS CLEANUP ==========
