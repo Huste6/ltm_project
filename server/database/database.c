@@ -506,6 +506,46 @@ time_t db_get_room_start_time(Database *db, const char *room_id)
 }
 
 /**
+ * @brief Get room time limit in minutes
+ * @param db Database structure
+ * @param room_id Room ID
+ * @return Time limit in minutes, -1 on error
+ */
+int db_get_room_time_limit(Database *db, const char *room_id)
+{
+    pthread_mutex_lock(&db->mutex);
+
+    char query[256];
+    snprintf(query, sizeof(query), "SELECT time_limit_minutes FROM rooms WHERE room_id='%s'", room_id);
+
+    if (mysql_query(db->conn, query))
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_RES *result = mysql_store_result(db->conn);
+    if (!result)
+    {
+        pthread_mutex_unlock(&db->mutex);
+        return -1;
+    }
+
+    MYSQL_ROW row = mysql_fetch_row(result);
+    int time_limit = -1;
+
+    if (row && row[0])
+    {
+        time_limit = atoi(row[0]);
+    }
+
+    mysql_free_result(result);
+    pthread_mutex_unlock(&db->mutex);
+
+    return time_limit;
+}
+
+/**
  * @brief Get leaderboard for room
  * @param db Database structure
  * @param room_id Room ID

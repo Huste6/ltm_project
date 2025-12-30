@@ -74,6 +74,7 @@ int main()
                 handle_logout(&client);
                 break;
             case 0:
+                handle_logout(&client);
                 running = 0;
                 break;
             default:

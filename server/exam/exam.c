@@ -151,23 +151,94 @@ void handle_save_answer(Server *server, ClientSession *client, Message *msg)
     }
 
     // Check room is IN_PROGRESS (status 1 = IN_PROGRESS)
+    // If NOT in progress → force submit and return result
     if (status != 1)
     {
-        send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, "Room not in progress");
-        return;
-    }
+        printf("[SAVE_ANSWER] Room '%s' not in progress (status=%d)\n", room_id, status);
 
-    // CHECK TIMEOUT: Verify room hasn't exceeded time limit
-    int is_expired = db_is_room_expired(server->db, room_id);
-    if (is_expired < 0)
-    {
-        send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to check room status");
-        return;
-    }
-    if (is_expired)
-    {
-        send_error_or_response(client->socket_fd, CODE_TIME_EXPIRED, "Room time limit exceeded");
-        db_log_activity(server->db, "WARNING", client->username, "SAVE_ANSWER", "Attempted to save after timeout");
+        // Force submit if not already submitted
+        if (!client->has_submitted)
+        {
+            printf("[SAVE_ANSWER] Force submitting for user '%s'\n", client->username);
+
+            // Get correct answers
+            int score = 0;
+            int total = 0;
+            char correct_answers[256];
+
+            if (db_get_correct_answers(server->db, room_id, correct_answers, &total) < 0)
+            {
+                printf("[SAVE_ANSWER] Failed to get correct answers\n");
+                send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to grade exam");
+                return;
+            }
+
+            // Build answer string and calculate score
+            char answer_string[256] = {0};
+            int pos = 0;
+
+            for (int i = 0; i < total; i++)
+            {
+                char user_ans = client->exam_answers[i];
+                if (user_ans == 0)
+                    user_ans = '-';
+                else if (user_ans == correct_answers[i])
+                    score++;
+
+                if (i > 0)
+                    answer_string[pos++] = ',';
+                answer_string[pos++] = user_ans;
+            }
+            answer_string[pos] = '\0';
+
+            // Calculate time taken
+            int time_taken = 0;
+            time_t start_time = db_get_room_start_time(server->db, room_id);
+            if (start_time > 0)
+            {
+                time_taken = (int)(time(NULL) - start_time);
+            }
+
+            // Save to database
+            if (db_submit_exam(server->db, room_id, client->username, score, total, answer_string, time_taken) < 0)
+            {
+                printf("[SAVE_ANSWER] Failed to save exam result\n");
+                send_error_or_response(client->socket_fd, CODE_INTERNAL_ERROR, "Failed to save result");
+                return;
+            }
+
+            client->has_submitted = 1;
+            printf("[SAVE_ANSWER] Force submitted: %d/%d for '%s'\n", score, total, client->username);
+
+            // Send result with score
+            char result[128];
+            snprintf(result, sizeof(result), "%d|%d", score, total);
+            send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, result);
+            printf("[SAVE_ANSWER] Sent result: %s\n", result);
+        }
+        else
+        {
+            printf("[SAVE_ANSWER] User '%s' already submitted, fetching result from DB\n", client->username);
+
+            // Get result from database
+            char *result_from_db = db_get_exam_result(server->db, room_id, client->username);
+            if (result_from_db)
+            {
+                send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, result_from_db);
+                printf("[SAVE_ANSWER] Sent cached result: %s\n", result_from_db);
+                free(result_from_db);
+            }
+            else
+            {
+                send_error_or_response(client->socket_fd, CODE_NOT_IN_PROGRESS, "Exam already submitted");
+            }
+        }
+
+        // Reset client state
+        client->state = STATE_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
+        client->is_creator = 0;
+
         return;
     }
 
@@ -812,15 +883,24 @@ int force_submit_exam(Server *server, ClientSession *client, const char *room_id
     answer_string[answer_string_pos] = '\0';
 
     // Calculate time taken (in seconds)
+    // Cap at room's time limit (since exam timed out)
     int time_taken = 0;
     time_t start_time = db_get_room_start_time(server->db, room_id);
     if (start_time > 0)
     {
-        time_t now = time(NULL);
-        time_taken = (int)(now - start_time);
+        time_taken = (int)(time(NULL) - start_time);
     }
 
-    // Save result to database
+    // Get room time limit and cap time_taken at that limit
+    int time_limit = db_get_room_time_limit(server->db, room_id);
+    if (time_limit > 0)
+    {
+        int max_time = time_limit * 60; // Convert minutes to seconds
+        if (time_taken > max_time)
+        {
+            time_taken = max_time;
+        }
+    } // Save result to database
     if (db_submit_exam(server->db, room_id, client->username, score, total, answer_string, time_taken) < 0)
     {
         printf("[FORCE_SUBMIT] Failed to save result for user '%s' in room '%s'\n", client->username, room_id);

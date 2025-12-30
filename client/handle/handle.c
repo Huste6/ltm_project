@@ -795,28 +795,16 @@ void handle_answer_questions(Client *client, const int *question_ids, int total_
         {
             printf("✓ Answer %d saved\n", i + 1);
         }
-        else if (save_resp.code == CODE_TIME_EXPIRED)
-        {
-            // Exam timed out during answering
-            printf("\n========================================\n");
-            printf("TIME EXPIRED - Exam has ended!\n");
-            printf("You have answered %d out of %d question(s).\n", i, total_questions);
-            printf("========================================\n");
 
-            // Reset client state back to authenticated
-            client->state = CLIENT_AUTHENTICATED;
-            memset(client->current_room, 0, sizeof(client->current_room));
-            client->is_creator = 0;
-
-            return;
-        }
         else if (save_resp.code == CODE_NOT_IN_PROGRESS)
         {
             // Room no longer in progress
             printf("\n========================================\n");
-            printf("EXAM ENDED - Room is no longer in progress!\n");
+            printf("EXAM ENDED - Time expired. Room is no longer in progress!\n");
             printf("You have answered %d out of %d question(s).\n", i, total_questions);
             printf("========================================\n");
+
+            display_exam_result(save_resp.message);
 
             // Reset client state back to authenticated
             client->state = CLIENT_AUTHENTICATED;
