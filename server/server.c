@@ -268,15 +268,15 @@ void *handle_client(void *arg)
         {
             handle_view_result(g_server, client, &msg);
         }
-        else if (strcmp(msg.command, "PRACTICE") == 0)
+        else if (strcmp(msg.command, MSG_PRACTICE) == 0)
         {
             handle_practice(g_server, client, &msg);
         }
-        else if (strcmp(msg.command, "SAVE_PRACTICE_ANSWER") == 0)
+        else if (strcmp(msg.command, MSG_SAVE_PRACTICE_ANSWER) == 0)
         {
             handle_save_practice_answer(g_server, client, &msg);
         }
-        else if (strcmp(msg.command, "SUBMIT_PRACTICE") == 0)
+        else if (strcmp(msg.command, MSG_SUBMIT_PRACTICE) == 0)
         {
             handle_submit_practice(g_server, client, &msg);
         }
@@ -297,7 +297,6 @@ void *handle_client(void *arg)
     printf("[Thread %lu] Cleaning up client socket %d\n", pthread_self(), client->socket_fd);
     return NULL;
 }
-
 
 /**
  * @brief Remove client session
@@ -331,4 +330,106 @@ void send_error_or_response(int socket_fd, int code, const char *message)
     char buffer[MAX_MESSAGE_LEN];
     int len = create_simple_response(code, message, buffer, sizeof(buffer));
     send_full(socket_fd, buffer, len);
+}
+
+/**
+ * @brief Cleanup thread for timed out rooms and practice sessions
+ * Runs every 2 seconds to check for expired rooms/practices, auto-submit, broadcast TIME_EXPIRED and handle practice timeouts
+ * Run parallel with main server thread
+ */
+void *cleanup_timed_out_rooms(void *arg)
+{
+    Server *server = (Server *)arg;
+    while (server->running)
+    {
+        sleep(2);
+
+        // ========== EXAM ROOMS CLEANUP ==========
+        int finished_count = db_check_and_finish_timed_out_rooms(server->db);
+
+        if (finished_count > 0)
+        {
+            pthread_mutex_lock(&server->clients_mutex);
+
+            // Force submit all users (that's it!)
+            for (int i = 0; i < MAX_CLIENTS; i++)
+            {
+                ClientSession *client = &server->clients[i];
+                if (!client->active || client->state != STATE_IN_EXAM)
+                    continue;
+
+                int status = db_get_room_status(server->db, client->current_room);
+                if (status == 2 && !client->has_submitted)
+                {
+                    force_submit_exam(server, client, client->current_room);
+                }
+            }
+
+            pthread_mutex_unlock(&server->clients_mutex);
+        }
+
+        // ========== PRACTICE SESSIONS CLEANUP ==========
+        pthread_mutex_lock(&server->clients_mutex);
+
+        // Check all clients in practice sessions for timeout
+        for (int i = 0; i < MAX_CLIENTS; i++)
+        {
+            ClientSession *client = &server->clients[i];
+
+            // Skip inactive clients or clients not in practice
+            if (!client->active || client->state != STATE_IN_PRACTICE || strlen(client->practice_id) == 0)
+            {
+                continue;
+            }
+
+            char session_username[MAX_USERNAME_LEN];
+            time_t start_time;
+            int time_limit;
+
+            if (db_get_practice_info(server->db, client->practice_id, session_username, &start_time, &time_limit) < 0)
+            {
+                continue;
+            }
+
+            time_t now = time(NULL);
+            time_t elapsed = now - start_time;
+            time_t time_limit_seconds = time_limit * 60;
+
+            if (elapsed > time_limit_seconds)
+            {
+                // Practice has timed out - force submit and send result with timeout flag
+                printf("[CLEANUP_THREAD] Practice '%s' timed out, auto-submitting for user '%s'\n", client->practice_id, client->username);
+
+                // Get correct answers to calculate score
+                int score = 0;
+                int total = 0;
+                char correct_answers[256];
+
+                if (db_get_practice_answers(server->db, client->practice_id, correct_answers, &total) >= 0)
+                {
+                    // Grade from client->practice_answers buffer
+                    for (int j = 0; j < total; j++)
+                    {
+                        char user_answer = client->practice_answers[j];
+                        if (user_answer != 0 && user_answer == correct_answers[j])
+                        {
+                            score++;
+                        }
+                    }
+                }
+
+                force_submit_practice(server, client, client->practice_id);
+
+                // Send result with TIMEOUT flag to client
+                char result[256];
+                snprintf(result, sizeof(result), "%d|%d|TIMEOUT", score, total);
+                send_error_or_response(client->socket_fd, CODE_PRACTICE_RESULT, result);
+            }
+        }
+
+        pthread_mutex_unlock(&server->clients_mutex);
+    }
+
+    printf("[CLEANUP_THREAD] Stopped\n");
+    return NULL;
 }

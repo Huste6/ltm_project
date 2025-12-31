@@ -79,7 +79,7 @@ void handle_create_room(Server *server, ClientSession *client, Message *msg)
 
     // Log activity
     char details[256];
-    snprintf(details, sizeof(details), "Room '%s' (%s): %d questions, %d min", room_name, room_id, num_questions, time_limit);
+    snprintf(details, sizeof(details), "Room '%.30s' (%.20s): %d questions, %d min", room_name, room_id, num_questions, time_limit);
     db_log_activity(server->db, "INFO", client->username, "CREATE_ROOM", details);
 
     printf("[CREATE_ROOM] User '%s' created room '%s' (%s)\n", client->username, room_name, room_id);

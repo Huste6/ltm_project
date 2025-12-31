@@ -76,5 +76,6 @@ void remove_client_session(Server *server, int socket_fd);
 
 // Utility functions
 void send_error_or_response(int socket_fd, int code, const char *message);
-
+// Cleanup thread (defined in server.c)
+void *cleanup_timed_out_rooms(void *arg);
 #endif // SERVER_H

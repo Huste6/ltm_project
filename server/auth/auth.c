@@ -137,7 +137,7 @@ void handle_login(Server *server, ClientSession *client, Message *msg)
 
     // Generate session ID
     char session_id[MAX_SESSION_ID_LEN];
-    snprintf(session_id, sizeof(session_id), "sess_%ld_%s", time(NULL), username);
+    snprintf(session_id, sizeof(session_id), "sess_%ld_%.20s", time(NULL), username);
 
     // Create session in database
     if (db_create_session(server->db, session_id, username) < 0)
