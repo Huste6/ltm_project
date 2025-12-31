@@ -155,7 +155,7 @@ void handle_submit_practice(Client *client);
 /**
  * @brief Display exam questions from JSON data
  */
-void display_exam_questions(const char *json_data, int *question_ids, int total_questions);
+void display_exam_questions(const char *json_data, int total_questions);
 
 /**
  * @brief Answer exam questions - auto-save each answer

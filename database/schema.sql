@@ -338,6 +338,35 @@ CREATE TABLE users
                                             ('Which ocean is the smallest?', 'Atlantic', 'Indian', 'Arctic', 'Pacific', 'C', 'easy', 'Geography'),
                                             ('What does HTTP stand for?', 'HyperText Transfer Protocol', 'High Transfer Text Protocol', 'HyperText Transport Protocol', 'High Text Transfer Protocol', 'A', 'medium', 'Computer Science');
 
+                                        INSERT INTO questions
+                                            (question_text, option_a, option_b, option_c, option_d, correct_answer, difficulty, category)
+                                        VALUES
+                                            ('What is the capital of Italy?', 'Rome', 'Milan', 'Venice', 'Florence', 'A', 'easy', 'Geography'),
+                                            ('What is 9 x 9?', '72', '81', '90', '99', 'B', 'easy', 'Math'),
+                                            ('Who wrote The Hobbit?', 'C.S. Lewis', 'J.K. Rowling', 'J.R.R. Tolkien', 'George Orwell', 'C', 'medium', 'Literature'),
+                                            ('What planet is closest to the sun?', 'Venus', 'Earth', 'Mercury', 'Mars', 'C', 'easy', 'Science'),
+                                            ('Which year did World War I begin?', '1912', '1914', '1916', '1918', 'B', 'medium', 'History'),
+                                            ('What is the chemical symbol for oxygen?', 'Ox', 'O', 'O2', 'Og', 'B', 'easy', 'Chemistry'),
+                                            ('Who painted The Last Supper?', 'Raphael', 'Michelangelo', 'Leonardo da Vinci', 'Donatello', 'C', 'medium', 'Art'),
+                                            ('What is the SI unit of force?', 'Watt', 'Newton', 'Joule', 'Pascal', 'B', 'medium', 'Physics'),
+                                            ('Which programming language is used for Android development?', 'Swift', 'Kotlin', 'Ruby', 'PHP', 'B', 'medium', 'Computer Science'),
+                                            ('Which continent is the largest?', 'Africa', 'Europe', 'Asia', 'North America', 'C', 'easy', 'Geography'),
+                                            ('What is 15% of 200?', '20', '25', '30', '35', 'C', 'easy', 'Math'),
+                                            ('Who wrote Pride and Prejudice?', 'Emily Brontë', 'Jane Austen', 'Louisa May Alcott', 'Mary Shelley', 'B', 'medium', 'Literature'),
+                                            ('Which gas is essential for human respiration?', 'Carbon Dioxide', 'Nitrogen', 'Oxygen', 'Hydrogen', 'C', 'easy', 'Biology'),
+                                            ('What is the currency of the United Kingdom?', 'Euro', 'Dollar', 'Pound Sterling', 'Franc', 'C', 'easy', 'Economics'),
+                                            ('Which planet has rings?', 'Mars', 'Earth', 'Saturn', 'Venus', 'C', 'easy', 'Science'),
+                                            ('What is the square root of 81?', '7', '8', '9', '10', 'C', 'easy', 'Math'),
+                                            ('Who is the author of The Great Gatsby?', 'Ernest Hemingway', 'F. Scott Fitzgerald', 'Mark Twain', 'John Steinbeck', 'B', 'medium', 'Literature'),
+                                            ('What is the pH value of pure water?', '5', '6', '7', '8', 'C', 'easy', 'Chemistry'),
+                                            ('Which country has the largest population?', 'India', 'USA', 'China', 'Russia', 'C', 'medium', 'Geography'),
+                                            ('What is the largest internal organ in the human body?', 'Heart', 'Liver', 'Lung', 'Kidney', 'B', 'medium', 'Biology'),
+                                            ('Who invented the light bulb?', 'Nikola Tesla', 'Thomas Edison', 'Alexander Bell', 'James Watt', 'B', 'medium', 'History'),
+                                            ('What does CPU stand for?', 'Central Processing Unit', 'Computer Power Unit', 'Central Performance Unit', 'Core Processing Utility', 'A', 'easy', 'Computer Science'),
+                                            ('Which blood type is known as the universal donor?', 'A', 'B', 'AB', 'O', 'D', 'medium', 'Biology'),
+                                            ('What is the capital of Brazil?', 'Rio de Janeiro', 'São Paulo', 'Brasília', 'Salvador', 'C', 'medium', 'Geography'),
+                                            ('Which musical instrument has 88 keys?', 'Guitar', 'Violin', 'Piano', 'Organ', 'C', 'easy', 'Music');
+
                                         -- Tạo user mẫu (password: "Password123")
                                         -- Hash SHA256 của "Password123" = ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f
                                         INSERT INTO users

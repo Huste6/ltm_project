@@ -655,7 +655,7 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
     }
     else
     {
-        char error[256];
+        char error[512];
         snprintf(error, sizeof(error), "Failed: [%d] %s", save_resp.code, save_resp.message);
         ui_show_error(error);
     }
@@ -664,7 +664,7 @@ void modify_answer(Client *client, int *question_ids, int total_questions)
 /**
  * @brief Display exam questions from JSON data
  */
-void display_exam_questions(const char *json_data, int *question_ids, int total_questions)
+void display_exam_questions(const char *json_data, int total_questions)
 {
     printf("\n========================================\n");
     printf("EXAM QUESTIONS (%d questions)\n", total_questions);
@@ -815,7 +815,7 @@ void handle_answer_questions(Client *client, const int *question_ids, int total_
         }
         else
         {
-            char error[256];
+            char error[512];
             snprintf(error, sizeof(error), "Failed to save answer: [%d] %s", save_resp.code, save_resp.message);
             ui_show_error(error);
         }
@@ -889,7 +889,7 @@ void handle_get_exam(Client *client)
         }
 
         // Display questions
-        display_exam_questions(resp.data, question_ids, total_questions);
+        display_exam_questions(resp.data, total_questions);
 
         // Collect answers
         handle_answer_questions(client, question_ids, total_questions);
@@ -1304,7 +1304,7 @@ void handle_practice(Client *client)
 
                 char *score_str = strtok(temp, "|");
                 char *total_str = strtok(NULL, "|");
-                char *timeout_flag = strtok(NULL, "|");
+                strtok(NULL, "|"); // timeout_flag (unused)
 
                 if (score_str && total_str)
                 {
@@ -1344,7 +1344,7 @@ void handle_practice(Client *client)
             }
             else
             {
-                char error[256];
+                char error[512];
                 snprintf(error, sizeof(error), "Failed to save answer: [%d] %s",
                          save_resp.code, save_resp.message);
                 ui_show_error(error);

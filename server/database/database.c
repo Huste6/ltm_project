@@ -315,49 +315,63 @@ char *db_list_rooms(Database *db, const char *status_filter)
         return NULL;
     }
 
-    // Build JSON
-    char *json = malloc(16384);
-    strcpy(json, "{\n  \"rooms\": [\n");
+    // Build formatted text output
+    char *output = malloc(32768);
+    if (!output)
+    {
+        mysql_free_result(result);
+        pthread_mutex_unlock(&db->mutex);
+        return NULL;
+    }
 
-    MYSQL_ROW row; // Fetch each row from the result set
+    strcpy(output, "\n========================================\n");
+    strcat(output, "         AVAILABLE ROOMS\n");
+    strcat(output, "========================================\n\n");
+
+    int room_count = 0;
+    MYSQL_ROW row;
     while ((row = mysql_fetch_row(result)))
     {
-        char room_entry[512]; // Temporary buffer for each room entry
+        room_count++;
+        char room_entry[1024];
+
         // row[0]=room_id, row[1]=room_name, row[2]=creator, row[3]=status,
         // row[4]=participant_count, row[5]=max_participants, row[6]=num_questions,
         // row[7]=time_limit_minutes, row[8]=created_at
+
         snprintf(room_entry, sizeof(room_entry),
-                 "{\"room_id\":\"%s\",\"room_name\":\"%s\",\"creator\":\"%s\","
-                 "\"status\":\"%s\",\"participant_count\":%s,\"max_participants\":%s,"
-                 "\"num_questions\":%s,\"time_limit_minutes\":%s,\"created_at\":\"%s\"},",
-                 row[0], row[1], row[2], row[3], row[4], row[5], row[6], row[7], row[8]);
-        strcat(json, room_entry); // Append room entry to JSON
-        strcat(json, "\n");
+                 "Room #%d\n"
+                 "  ID: %s\n"
+                 "  Name: %s\n"
+                 "  Creator: %s\n"
+                 "  Status: %s\n"
+                 "  Participants: %s/%s\n"
+                 "  Questions: %s\n"
+                 "  Time Limit: %s minutes\n"
+                 "  Created: %s\n"
+                 "----------------------------------------\n",
+                 room_count, row[0], row[1], row[2], row[3],
+                 row[4], row[5], row[6], row[7], row[8]);
+
+        strcat(output, room_entry);
     }
 
-    strcat(json, "  ]\n}");
-    // json:
-    // {
-    //   "rooms": [
-    //     {
-    //       "room_id": "1234567890",
-    //       "room_name": "Sample Room",
-    //       "creator": "user1",
-    //       "status": "NOT_STARTED",
-    //       "participant_count": 5,
-    //       "max_participants": 10,
-    //       "num_questions": 20,
-    //       "time_limit_minutes": 15,
-    //       "created_at": "2024-10-01 12:34:56"
-    //     },
-    //     ...
-    //   ]
-    // }
+    if (room_count == 0)
+    {
+        strcat(output, "No rooms found.\n");
+        strcat(output, "========================================\n");
+    }
+    else
+    {
+        char footer[128];
+        snprintf(footer, sizeof(footer), "\nTotal rooms: %d\n========================================\n", room_count);
+        strcat(output, footer);
+    }
 
-    mysql_free_result(result); // Free the result set to avoid memory leaks
+    mysql_free_result(result);
     pthread_mutex_unlock(&db->mutex);
 
-    return json;
+    return output;
 }
 
 /**
@@ -1350,8 +1364,6 @@ int db_get_practice_answers(Database *db, const char *practice_id, char *answers
         return -1;
     }
 
-    MYSQL_ROW check_row = mysql_fetch_row(check_result);
-    int num_questions = atoi(check_row[0]);
     mysql_free_result(check_result);
 
     // Get correct answers from practice_questions joined with questions

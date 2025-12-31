@@ -72,8 +72,6 @@ void server_cleanup(Server *server);
 
 // Client management
 void *handle_client(void *arg);
-ClientSession *find_session_by_socket(Server *server, int socket_fd);
-ClientSession *find_session_by_username(Server *server, const char *username);
 void remove_client_session(Server *server, int socket_fd);
 
 // Utility functions

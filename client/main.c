@@ -8,17 +8,37 @@
 #include <sys/socket.h>
 #include <unistd.h>
 
-int main()
+int main(int argc, char *argv[])
 {
     Client client;
     int running = 1;
+    char server_ip[64] = SERVER_IP; 
+    int server_port = SERVER_PORT;
+
+    // Parse command line arguments
+    if (argc > 1)
+    {
+        strncpy(server_ip, argv[1], sizeof(server_ip) - 1);
+        server_ip[sizeof(server_ip) - 1] = '\0';
+    }
+    if (argc > 2)
+    {
+        server_port = atoi(argv[2]);
+        if (server_port <= 0 || server_port > 65535)
+        {
+            fprintf(stderr, "Invalid port number. Using default port %d\n", SERVER_PORT);
+            server_port = SERVER_PORT;
+        }
+    }
 
     ui_clear_screen();
 
+    printf("Connecting to server %s:%d...\n", server_ip, server_port);
+
     // Connect to server
-    if (client_connect(&client, SERVER_IP, SERVER_PORT) < 0)
+    if (client_connect(&client, server_ip, server_port) < 0)
     {
-        fprintf(stderr, "Failed to connect to server\n");
+        fprintf(stderr, "Failed to connect to server %s:%d\n", server_ip, server_port);
         return 1;
     }
 

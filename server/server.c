@@ -298,45 +298,6 @@ void *handle_client(void *arg)
     return NULL;
 }
 
-/**
- * @brief Find session by socket
- * dùng để kiểm tra client đã đăng nhập chưa
- */
-ClientSession *find_session_by_socket(Server *server, int socket_fd)
-{
-    pthread_mutex_lock(&server->clients_mutex);
-
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (server->clients[i].active && server->clients[i].socket_fd == socket_fd)
-        {
-            pthread_mutex_unlock(&server->clients_mutex);
-            return &server->clients[i];
-        }
-    }
-    pthread_mutex_unlock(&server->clients_mutex);
-    return NULL;
-}
-
-/**
- * @brief Find session by username
- * dùng để kiểm tra client đã đăng nhập chưa
- */
-ClientSession *find_session_by_username(Server *server, const char *username)
-{
-    pthread_mutex_lock(&server->clients_mutex);
-
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        if (server->clients[i].active && strcmp(server->clients[i].username, username) == 0)
-        {
-            pthread_mutex_unlock(&server->clients_mutex);
-            return &server->clients[i];
-        }
-    }
-    pthread_mutex_unlock(&server->clients_mutex);
-    return NULL;
-}
 
 /**
  * @brief Remove client session
