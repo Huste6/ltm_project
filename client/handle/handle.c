@@ -933,19 +933,37 @@ void handle_get_exam(Client *client)
 
         free(resp.data);
     }
-    else if (resp.code == 224) // CODE_ROOM_NOT_STARTED
+    else if (resp.code == CODE_NOT_IN_PROGRESS)
     {
-        ui_show_error("Room exam has not started yet");
+        ui_show_error("The exam has not started or already ended.");
+        // Reset client state to return to authenticated menu
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
     }
-    else if (resp.code == 225) // CODE_ROOM_FINISHED
+    else if (resp.code == 224 || resp.code == 225) // ROOM_NOT_STARTED or ROOM_FINISHED
     {
-        ui_show_error("Room exam has already finished");
+        char error[512];
+        if (resp.code == 224)
+        {
+            snprintf(error, sizeof(error), "Room exam has not started yet");
+        }
+        else
+        {
+            snprintf(error, sizeof(error), "Room exam has already finished");
+        }
+        ui_show_error(error);
+        // Reset client state to return to authenticated menu
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
     }
     else
     {
         char error[512];
         snprintf(error, sizeof(error), "[%d] %s", resp.code, resp.message);
         ui_show_error(error);
+        // Reset client state on unexpected error
+        client->state = CLIENT_AUTHENTICATED;
+        memset(client->current_room, 0, sizeof(client->current_room));
     }
 }
 
